@@ -1,2 +1,3 @@
-# uart_for_fpga
-The simple VHDL UART for serial communication with an FPGA
+# Simple UART for FPGA
+
+Simple UART (Universal Asynchronous Receiver & Transmitter) module for serial communication with an FPGA. The UART module was implemented using VHDL.
