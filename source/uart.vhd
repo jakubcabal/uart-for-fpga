@@ -27,11 +27,11 @@ use IEEE.STD_LOGIC_UNSIGNED.ALL;
 
 entity UART is
     Generic (
-        BAUD_RATE  : integer := 9600; -- baud rate value, default is 9600
-        DATA_BITS  : integer := 8;    -- legal values: 5,6,7,8
-        --STOP_BITS  : integer;       -- TODO, now must be 1 stop bit
-        --PARITY_BIT : integer;       -- TODO, now must be none parity bit
-        CLK_FREQ   : integer := 50e6  -- set system clock frequency in Hz, default is 50 MHz
+        BAUD_RATE  : integer := 115200; -- baud rate value, default is 115200
+        DATA_BITS  : integer := 8;      -- legal values: 5,6,7,8, default is 8 dat bits
+        --STOP_BITS  : integer;         -- TODO, now must be 1 stop bit
+        --PARITY_BIT : integer;         -- TODO, now must be none parity bit
+        CLK_FREQ   : integer := 50e6    -- set system clock frequency in Hz, default is 50 MHz
     );
     Port (
         CLK        : in  std_logic; -- system clock
@@ -118,15 +118,17 @@ begin
     --                        OUTPUT REGISTER
     -- -------------------------------------------------------------------------
 
-    TX_VALID <= rx_uart_vld;
-
     output_reg : process (CLK)
     begin
         if (rising_edge(CLK)) then
             if (RST = '1') then
                 TX_DATA <= (others => '0');
-            elsif (rx_uart_vld = '1') then
-                TX_DATA <= rx_uart_data;
+                TX_VALID <= '0';
+            else
+                if (rx_uart_vld = '1') then
+                    TX_DATA <= rx_uart_data;
+                end if;
+                TX_VALID <= rx_uart_vld;
             end if;
         end if;
     end process;
@@ -143,7 +145,7 @@ begin
             if (RST = '1') then
                 tx_present_st     <= idle;
                 tx_uart_bit_count <= 0;
-                tx_uart_ready     <= '0';
+                tx_uart_ready     <= '1';
                 tx_uart_reg       <= '1';
             else
                 tx_present_st     <= tx_next_st;
@@ -180,14 +182,17 @@ begin
                     if (tx_uart_bit_count = DATA_BITS+1) then -- stop bit
                         tx_uart_bit_count_next <= 0;
                         tx_uart_reg_next <= '1';
+                        tx_uart_ready_next <= '1';
                         tx_next_st <= idle;
                     elsif (tx_uart_bit_count = 0) then -- start bit
                         tx_uart_bit_count_next <= tx_uart_bit_count + 1;
                         tx_uart_reg_next <= '0';
+                        tx_uart_ready_next <= '0';
                         tx_next_st <= transmit_data;
                     else -- data bits
                         tx_uart_bit_count_next <= tx_uart_bit_count + 1;
                         tx_uart_reg_next <= tx_uart_data(tx_uart_bit_count-1);
+                        tx_uart_ready_next <= '0';
                         tx_next_st <= transmit_data;
                     end if;
                 end if;
@@ -234,8 +239,10 @@ begin
      
             when idle =>
                 if (uart_clk_en = '1' AND RX_UART = '0') then
+                    rx_uart_vld_next <= '0';
                     rx_next_st <= receive_data;
                 else
+                    rx_uart_vld_next <= '0';
                     rx_next_st <= idle;
                 end if;
 
