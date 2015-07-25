@@ -8,4 +8,4 @@ The UART module passed simulations. In the near future it will be implemented ge
 - Logic element (LUT): 85
 - Registers (FF): 50
 
-*Synthesis was performed using Quartus II 64-Bit Version 13.0.1 with defauld values of generics.*
+*Synthesis was performed using Quartus II 64-Bit Version 13.0.1 with default values of generics.*
