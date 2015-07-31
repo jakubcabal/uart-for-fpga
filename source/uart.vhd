@@ -18,7 +18,9 @@
 -- AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 -- LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 -- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
--- SOFTWARE.      
+-- SOFTWARE.
+--
+-- Website: https://github.com/jakubcabal/uart_for_fpga    
 --------------------------------------------------------------------------------
 
 library IEEE;
@@ -36,245 +38,339 @@ entity UART is
     Port (
         CLK        : in  std_logic; -- system clock
         RST        : in  std_logic; -- high active synchronous reset
-        -- UART INTERFACE
+        -- UART RS232 INTERFACE
         TX_UART    : out std_logic;
         RX_UART    : in  std_logic;
         -- USER TX INTERFACE
-        TX_DATA    : out std_logic_vector(DATA_BITS-1 downto 0);
-        TX_VALID   : out std_logic; -- when TX_VALID = 1, data on TX_DATA are valid
+        DATA_OUT   : out std_logic_vector(DATA_BITS-1 downto 0);
+        DATA_VLD   : out std_logic; -- when DATA_VLD = 1, data on DATA_OUT are valid
         -- USER RX INTERFACE
-        RX_DATA    : in  std_logic_vector(DATA_BITS-1 downto 0);
-        RX_VALID   : in  std_logic; -- when RX_VALID = 1, data on RX_DATA are valid
-        RX_READY   : out std_logic  -- when RX_READY = 1, you can set RX_VALID to 1
+        DATA_IN    : in  std_logic_vector(DATA_BITS-1 downto 0);
+        DATA_SEND  : in  std_logic; -- when DATA_SEND = 1, data on DATA_IN will be transmit, DATA_SEND can set to 1 only when BUSY = 0
+        BUSY       : out std_logic  -- when BUSY = 1 transiever is busy, you must not set DATA_SEND to 1
     );
 end UART;
 
 architecture FULL of UART is
 
-    -- constants
-    constant divider_value        : integer := CLK_FREQ / BAUD_RATE;
-    -- signals
-    signal tx_uart_reg            : std_logic;
-    signal tx_uart_reg_next       : std_logic;
-    signal tx_uart_data           : std_logic_vector(DATA_BITS-1 downto 0);
-    signal tx_uart_bit_count      : integer range 0 to DATA_BITS+1;
-    signal tx_uart_bit_count_next : integer range 0 to DATA_BITS+1;
-    signal tx_uart_ready          : std_logic;
-    signal tx_uart_ready_next     : std_logic;
-    signal rx_uart_data           : std_logic_vector(DATA_BITS-1 downto 0);
-    signal rx_uart_data_next      : std_logic_vector(DATA_BITS-1 downto 0);
-    signal rx_uart_vld            : std_logic;
-    signal rx_uart_vld_next       : std_logic;
-    signal rx_uart_bit_count      : integer range 0 to DATA_BITS-1;
-    signal rx_uart_bit_count_next : integer range 0 to DATA_BITS-1;
-    signal uart_clk_en            : std_logic;
-    signal ticks                  : integer range 0 to divider_value;
+    constant divider_value      : integer := CLK_FREQ / BAUD_RATE;
+    constant half_divider_value : integer := divider_value / 2;
 
-    type state is (idle, receive_data, transmit_data, receive_stop_bit);
-    signal tx_present_st : state;
-    signal tx_next_st    : state;
-    signal rx_present_st : state;
-    signal rx_next_st    : state;
+    signal tx_clk_en            : std_logic;
+    signal tx_ticks             : integer range 0 to divider_value-1;
+    signal tx_data              : std_logic_vector(DATA_BITS-1 downto 0);
+    signal tx_bit_count         : integer range 0 to DATA_BITS-1;
+    signal tx_bit_count_en      : std_logic;
+    signal tx_bit_count_rst     : std_logic;
+    signal tx_busy              : std_logic;
+
+    signal rx_clk_en            : std_logic;
+    signal rx_ticks             : integer range 0 to divider_value-1;
+    signal rx_clk_divider_en    : std_logic;
+    signal rx_data              : std_logic_vector(DATA_BITS-1 downto 0);
+    signal rx_bit_count         : integer range 0 to DATA_BITS-1;
+    signal rx_bit_count_en      : std_logic;
+    signal rx_bit_count_rst     : std_logic;
+    signal rx_data_shreg_en     : std_logic;
+
+    type state is (idle, txsync, startbit, databits, stopbit);
+    signal tx_pstate : state;
+    signal tx_nstate : state;
+    signal rx_pstate : state;
+    signal rx_nstate : state;
 
 begin
 
     -- -------------------------------------------------------------------------
-    --                        UART CLOCK DIVIDER
+    --                        UART TRANSMITTER CLOCK DIVIDER
     -- -------------------------------------------------------------------------
 
-    clk_divider : process (CLK)
+    tx_clk_divider : process (CLK)
     begin
         if (rising_edge(CLK)) then
             if (RST = '1') then
-                uart_clk_en <= '0';
-            elsif (ticks = divider_value) then
-                ticks  <= 0;
-                uart_clk_en <= '1';
+                tx_ticks <= 0;
+                tx_clk_en <= '0';
+            elsif (tx_ticks = divider_value-1) then
+                tx_ticks <= 0;
+                tx_clk_en <= '1';
             else
-                ticks <= ticks + 1;
-                uart_clk_en <= '0';
+                tx_ticks <= tx_ticks + 1;
+                tx_clk_en <= '0';
             end if;
         end if;
     end process;
 
     -- -------------------------------------------------------------------------
-    --                        INPUT REGISTER
+    --                        UART TRANSMITTER INPUT DATA REGISTER
     -- -------------------------------------------------------------------------
-
-    RX_READY <= tx_uart_ready;
 
     input_reg : process (CLK)
     begin
         if (rising_edge(CLK)) then
             if (RST = '1') then
-                tx_uart_data <= (others => '0');
-            elsif (RX_VALID = '1' AND tx_uart_ready = '1') then
-                tx_uart_data <= RX_DATA;
+                tx_data <= (others => '0');
+            elsif (DATA_SEND = '1' AND tx_busy = '0') then
+                tx_data <= DATA_IN;
             end if;
         end if;
     end process;
 
     -- -------------------------------------------------------------------------
-    --                        OUTPUT REGISTER
+    --                        UART TRANSMITTER BIT COUNTER
     -- -------------------------------------------------------------------------
 
-    output_reg : process (CLK)
+    tx_bit_counter : process (CLK)
     begin
         if (rising_edge(CLK)) then
-            if (RST = '1') then
-                TX_DATA <= (others => '0');
-                TX_VALID <= '0';
-            else
-                if (rx_uart_vld = '1') then
-                    TX_DATA <= rx_uart_data;
+            if (tx_bit_count_rst = '1') then
+                tx_bit_count <= 0;
+            elsif (tx_bit_count_en = '1' AND tx_clk_en = '1') then
+                if (tx_bit_count = DATA_BITS-1) then
+                    tx_bit_count <= 0;
+                else
+                    tx_bit_count <= tx_bit_count + 1;
                 end if;
-                TX_VALID <= rx_uart_vld;
             end if;
         end if;
     end process;
 
     -- -------------------------------------------------------------------------
-    --                        TX UART FSM
+    --                        UART TRANSMITTER FSM
     -- -------------------------------------------------------------------------
 
-    TX_UART <= tx_uart_reg;
+    BUSY <= tx_busy;
 
-    process (CLK) 
+    -- PRESENT STATE REGISTER
+    tx_pstate_reg : process (CLK) 
     begin
         if (rising_edge(CLK)) then
             if (RST = '1') then
-                tx_present_st     <= idle;
-                tx_uart_bit_count <= 0;
-                tx_uart_ready     <= '1';
-                tx_uart_reg       <= '1';
+                tx_pstate <= idle;
             else
-                tx_present_st     <= tx_next_st;
-                tx_uart_bit_count <= tx_uart_bit_count_next;
-                tx_uart_ready     <= tx_uart_ready_next;
-                tx_uart_reg       <= tx_uart_reg_next;
+                tx_pstate <= tx_nstate;
             end if;
         end if;   
     end process;
 
-    process (tx_present_st, RX_VALID, tx_uart_bit_count, tx_uart_ready, tx_uart_data, tx_uart_reg, uart_clk_en)
+    -- NEXT STATE AND OUTPUTS LOGIC
+    process (tx_pstate, DATA_SEND, tx_clk_en, tx_data, tx_bit_count)
     begin
 
-        tx_uart_bit_count_next <= tx_uart_bit_count;
-        tx_uart_ready_next <= tx_uart_ready;
-        tx_uart_reg_next <= tx_uart_reg;
-        tx_next_st <= tx_present_st;
-
-        case tx_present_st is
+        case tx_pstate is
      
             when idle =>
-                if (RX_VALID = '1') then
-                    tx_uart_ready_next <= '0';
-                    tx_uart_reg_next <= '1';
-                    tx_next_st <= transmit_data;
+                tx_busy <= '0';
+                TX_UART <= '1';
+                tx_bit_count_rst <= '1';
+                tx_bit_count_en <= '0';
+
+                if (DATA_SEND = '1') then
+                    tx_nstate <= txsync;
                 else
-                    tx_uart_ready_next <= '1';
-                    tx_uart_reg_next <= '1';
-                    tx_next_st <= idle;
+                    tx_nstate <= idle;
                 end if;
 
-            when transmit_data =>
-                if (uart_clk_en = '1') then
-                    if (tx_uart_bit_count = DATA_BITS+1) then -- stop bit
-                        tx_uart_bit_count_next <= 0;
-                        tx_uart_reg_next <= '1';
-                        tx_uart_ready_next <= '1';
-                        tx_next_st <= idle;
-                    elsif (tx_uart_bit_count = 0) then -- start bit
-                        tx_uart_bit_count_next <= tx_uart_bit_count + 1;
-                        tx_uart_reg_next <= '0';
-                        tx_uart_ready_next <= '0';
-                        tx_next_st <= transmit_data;
-                    else -- data bits
-                        tx_uart_bit_count_next <= tx_uart_bit_count + 1;
-                        tx_uart_reg_next <= tx_uart_data(tx_uart_bit_count-1);
-                        tx_uart_ready_next <= '0';
-                        tx_next_st <= transmit_data;
-                    end if;
+            when txsync =>
+                tx_busy <= '1';
+                TX_UART <= '1';
+                tx_bit_count_rst <= '1';
+                tx_bit_count_en <= '0';
+
+                if (tx_clk_en = '1') then
+                    tx_nstate <= startbit;
+                else
+                    tx_nstate <= txsync;
                 end if;
 
-            when others =>
-                tx_uart_bit_count_next <= 0;
-                tx_uart_ready_next <= '0';
-                tx_uart_reg_next <= '1';
-                tx_next_st <= idle;
+            when startbit =>
+                tx_busy <= '1';
+                TX_UART <= '0';
+                tx_bit_count_rst <= '0';
+                tx_bit_count_en <= '0';
+
+                if (tx_clk_en = '1') then
+                    tx_nstate <= databits;
+                else
+                    tx_nstate <= startbit;
+                end if;
+
+            when databits =>
+                tx_busy <= '1';
+                TX_UART <= tx_data(tx_bit_count);
+                tx_bit_count_rst <= '0';
+                tx_bit_count_en <= '1';
+
+                if ((tx_clk_en = '1') AND (tx_bit_count = DATA_BITS-1)) then
+                    tx_nstate <= stopbit;
+                else
+                    tx_nstate <= databits;
+                end if;
+
+            when stopbit =>
+                tx_busy <= '1';
+                TX_UART <= '1';
+                tx_bit_count_rst <= '1';
+                tx_bit_count_en <= '0';
+
+                if (tx_clk_en = '1') then
+                    tx_nstate <= idle;
+                else
+                    tx_nstate <= stopbit;
+                end if;
+
+            when others => 
+                tx_busy <= '1';
+                TX_UART <= '1';
+                tx_bit_count_rst <= '1';
+                tx_bit_count_en <= '0';
+                tx_nstate <= idle;
          
         end case;
     end process;
 
     -- -------------------------------------------------------------------------
-    --                        RX UART FSM
+    --                        UART RECEIVER CLOCK DIVIDER
     -- -------------------------------------------------------------------------
 
+    rx_clk_divider : process (CLK)
+    begin
+        if (rising_edge(CLK)) then
+            if (RST = '1') then
+                rx_ticks <= half_divider_value;
+                rx_clk_en <= '0';
+            elsif (rx_clk_divider_en = '1') then
+                if (rx_ticks = divider_value-1) then
+                    rx_ticks <= 0;
+                    rx_clk_en <= '1';
+                else
+                    rx_ticks <= rx_ticks + 1;
+                    rx_clk_en <= '0';
+                end if;
+            else
+                rx_ticks <= half_divider_value;
+                rx_clk_en <= '0';
+            end if;
+        end if;
+    end process;
+
+    -- -------------------------------------------------------------------------
+    --                        UART RECEIVER BIT COUNTER
+    -- -------------------------------------------------------------------------
+
+    rx_bit_counter : process (CLK)
+    begin
+        if (rising_edge(CLK)) then
+            if (rx_bit_count_rst = '1') then
+                rx_bit_count <= 0;
+            elsif (rx_bit_count_en = '1' AND rx_clk_en = '1') then
+                if (rx_bit_count = DATA_BITS-1) then
+                    rx_bit_count <= 0;
+                else
+                    rx_bit_count <= rx_bit_count + 1;
+                end if;
+            end if;
+        end if;
+    end process;
+
+    -- -------------------------------------------------------------------------
+    --                        UART RECEIVER DATA SHIFT REGISTER
+    -- -------------------------------------------------------------------------
+
+    rx_data_shift_reg : process (CLK) 
+    begin
+        if (rising_edge(CLK)) then
+            if (RST = '1') then
+                rx_data <= (others => '0');
+            elsif (rx_clk_en = '1' AND rx_data_shreg_en = '1') then
+                rx_data <= RX_UART & rx_data(7 downto 1);
+            end if;
+        end if;
+    end process;
+
+    DATA_OUT <= rx_data;
+
+    -- -------------------------------------------------------------------------
+    --                        UART RECEIVER FSM
+    -- -------------------------------------------------------------------------
+
+    -- PRESENT STATE REGISTER
     process (CLK) 
     begin
         if (rising_edge(CLK)) then
             if (RST = '1') then
-                rx_present_st     <= idle;
-                rx_uart_bit_count <= 0;
-                rx_uart_data      <= (others => '0');
-                rx_uart_vld       <= '0';
+                rx_pstate <= idle;
             else
-                rx_present_st     <= rx_next_st;
-                rx_uart_bit_count <= rx_uart_bit_count_next;
-                rx_uart_data      <= rx_uart_data_next;
-                rx_uart_vld       <= rx_uart_vld_next;
+                rx_pstate <= rx_nstate;
             end if;
         end if;   
     end process;
 
-    process (rx_present_st, uart_clk_en, RX_UART, rx_uart_bit_count, rx_uart_data, rx_uart_vld)
+    -- NEXT STATE AND OUTPUTS LOGIC
+    process (rx_pstate, RX_UART, rx_clk_en, rx_bit_count)
     begin
-
-        rx_uart_bit_count_next <= rx_uart_bit_count;
-        rx_uart_data_next <= rx_uart_data;
-        rx_uart_vld_next <= rx_uart_vld;
-        rx_next_st <= rx_present_st;
-
-        case rx_present_st is
+        case rx_pstate is
      
             when idle =>
-                if (uart_clk_en = '1' AND RX_UART = '0') then
-                    rx_uart_vld_next <= '0';
-                    rx_next_st <= receive_data;
+                DATA_VLD <= '0';
+                rx_bit_count_rst <= '1';
+                rx_bit_count_en <= '0';
+                rx_data_shreg_en <= '0';
+                rx_clk_divider_en <= '0';
+
+                if (RX_UART = '0') then
+                    rx_nstate <= startbit;
                 else
-                    rx_uart_vld_next <= '0';
-                    rx_next_st <= idle;
+                    rx_nstate <= idle;              
                 end if;
 
-            when receive_data =>
-                if (uart_clk_en = '1') then
-                    if (rx_uart_bit_count = DATA_BITS-1) then
-                        rx_uart_bit_count_next <= 0;
-                        rx_uart_data_next(DATA_BITS-1) <= RX_UART;
-                        rx_uart_data_next(DATA_BITS-2 downto 0) <= rx_uart_data(DATA_BITS-1 downto 1);
-                        rx_next_st <= receive_stop_bit;
-                    else
-                        rx_uart_bit_count_next <= rx_uart_bit_count + 1;
-                        rx_uart_data_next(DATA_BITS-1) <= RX_UART;
-                        rx_uart_data_next(DATA_BITS-2 downto 0) <= rx_uart_data(DATA_BITS-1 downto 1);
-                        rx_next_st <= receive_data;
-                    end if;
+            when startbit =>
+                DATA_VLD <= '0';
+                rx_bit_count_rst <= '0';
+                rx_bit_count_en <= '0';
+                rx_data_shreg_en <= '0';
+                rx_clk_divider_en <= '1';
+
+                if (rx_clk_en = '1') then
+                    rx_nstate <= databits;
+                else
+                    rx_nstate <= startbit;
                 end if;
 
-            when receive_stop_bit =>
-                if (uart_clk_en = '1' AND RX_UART = '1') then
-                    rx_uart_vld_next <= '1';
-                    rx_next_st <= idle;
+            when databits =>
+                DATA_VLD <= '0';
+                rx_bit_count_rst <= '0';
+                rx_bit_count_en <= '1';
+                rx_data_shreg_en <= '1';
+                rx_clk_divider_en <= '1';
+
+                if ((rx_clk_en = '1') AND (rx_bit_count = DATA_BITS-1)) then
+                    rx_nstate <= stopbit;
                 else
-                    rx_uart_vld_next <= '0';
-                    rx_next_st <= receive_stop_bit;
+                    rx_nstate <= databits;
+                end if;
+
+            when stopbit =>
+                rx_bit_count_rst <= '1';
+                rx_bit_count_en <= '0';
+                rx_data_shreg_en <= '0';
+                rx_clk_divider_en <= '1';
+
+                if (rx_clk_en = '1') then
+                    rx_nstate <= idle;
+                    DATA_VLD <= RX_UART;
+                else
+                    rx_nstate <= stopbit;
+                    DATA_VLD <= '0';
                 end if;
 
             when others =>
-                rx_uart_bit_count_next <= 0;
-                rx_uart_data_next <= (others => '0');
-                rx_uart_vld_next <= '0';
-                rx_next_st <= idle;
+                DATA_VLD <= '0';
+                rx_bit_count_rst <= '1';
+                rx_bit_count_en <= '0';
+                rx_data_shreg_en <= '0';
+                rx_clk_divider_en <= '0';
+                rx_nstate <= idle;
          
         end case;
     end process;
