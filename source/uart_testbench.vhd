@@ -18,7 +18,9 @@
 -- AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 -- LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 -- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
--- SOFTWARE.      
+-- SOFTWARE.
+--
+-- Website: https://github.com/jakubcabal/uart_for_fpga
 --------------------------------------------------------------------------------
 
 library IEEE;
@@ -30,15 +32,15 @@ end UART_TESTBENCH;
  
 architecture FULL of UART_TESTBENCH is 
 
-	signal CLK      : std_logic := '0';
-	signal RST      : std_logic := '0';
-	signal tx_uart  : std_logic;
-	signal rx_uart  : std_logic := '1';
-	signal tx_valid : std_logic;
-	signal tx_data  : std_logic_vector(7 downto 0);
-	signal rx_valid : std_logic;
-	signal rx_ready : std_logic;
-	signal rx_data  : std_logic_vector(7 downto 0);
+	signal CLK       : std_logic := '0';
+	signal RST       : std_logic := '0';
+	signal tx_uart   : std_logic;
+	signal rx_uart   : std_logic := '1';
+	signal data_vld  : std_logic;
+	signal data_out  : std_logic_vector(7 downto 0);
+	signal data_send : std_logic;
+	signal busy      : std_logic;
+	signal data_in   : std_logic_vector(7 downto 0);
 
    	constant clk_period  : time := 20 ns;
 	constant uart_period : time := 8696 ns;
@@ -53,18 +55,18 @@ begin
         CLK_FREQ  => 50e6    -- set system clock frequency in Hz, default is 50 MHz
     )
     port map (
-        CLK       => CLK, -- system clock
-        RST       => RST, -- high active synchronous reset
-        -- UART INTERFACE
-        TX_UART   => tx_uart,
-        RX_UART   => rx_uart,
+        CLK       => CLK,   -- system clock
+        RST       => RST,   -- high active synchronous reset
+        -- UART RS232 INTERFACE
+        TX_UART   => TX_UART,
+        RX_UART   => RX_UART,
         -- USER TX INTERFACE
-        TX_DATA   => tx_data,
-        TX_VALID  => tx_valid, -- when TX_VALID = 1, data on TX_DATA are valid
+        DATA_OUT  => data_out,
+        DATA_VLD  => data_vld,  -- when DATA_VLD = 1, data on DATA_OUT are valid
         -- USER RX INTERFACE
-        RX_DATA   => rx_data,
-        RX_VALID  => rx_valid, -- when RX_VALID = 1, data on RX_DATA are valid
-        RX_READY  => rx_ready  -- when RX_READY = 1, you can set RX_VALID to 1
+        DATA_IN   => data_in,
+        DATA_SEND => data_send, -- when DATA_SEND = 1, data on DATA_IN will be transmit, DATA_SEND can set to 1 only when BUSY = 0
+        BUSY      => busy       -- when BUSY = 1 transiever is busy, you must not set DATA_SEND to 1
     );
 
 	clk_process : process
@@ -101,19 +103,19 @@ begin
 
 	test_tx_uart : process
 	begin
-		rx_valid <= '0';
+		data_send <= '0';
 		RST <= '1';
 		wait for 100 ns;
       	RST <= '0';
 
 		wait until rising_edge(CLK);
 
-		rx_valid <= '1';
-		rx_data <= data_value;
+		data_send <= '1';
+		data_in <= data_value;
 
 		wait until rising_edge(CLK);
 
-		rx_valid <= '0';
+		data_send <= '0';
 
 		wait until rising_edge(CLK);
 
