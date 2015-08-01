@@ -25,7 +25,7 @@
 
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
-use IEEE.STD_LOGIC_UNSIGNED.ALL;
+use IEEE.NUMERIC_STD.ALL;
 
 entity UART is
     Generic (
@@ -236,10 +236,7 @@ begin
     rx_clk_divider : process (CLK)
     begin
         if (rising_edge(CLK)) then
-            if (RST = '1') then
-                rx_ticks <= half_divider_value;
-                rx_clk_en <= '0';
-            elsif (rx_clk_divider_en = '1') then
+            if (rx_clk_divider_en = '1') then
                 if (rx_ticks = divider_value-1) then
                     rx_ticks <= 0;
                     rx_clk_en <= '1';
