@@ -25,7 +25,7 @@
 
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
-use IEEE.STD_LOGIC_UNSIGNED.ALL;
+use IEEE.NUMERIC_STD.ALL;
  
 entity UART_TESTBENCH is
 end UART_TESTBENCH;
@@ -45,6 +45,7 @@ architecture FULL of UART_TESTBENCH is
    	constant clk_period  : time := 20 ns;
 	constant uart_period : time := 8696 ns;
 	constant data_value  : std_logic_vector(7 downto 0) := "10100111";
+	constant data_value2 : std_logic_vector(7 downto 0) := "00110110";
  
 begin
  
@@ -97,6 +98,17 @@ begin
 		rx_uart <= '1'; -- stop bit
 		wait for uart_period;
 
+		rx_uart <= '0'; -- start bit
+		wait for uart_period;
+
+		for i in 0 to 7 loop
+			rx_uart <= data_value2(i); -- data bits
+			wait for uart_period;
+		end loop;
+
+		rx_uart <= '1'; -- stop bit
+		wait for uart_period;
+
 		wait;
 
 	end process;
@@ -112,6 +124,18 @@ begin
 
 		data_send <= '1';
 		data_in <= data_value;
+
+		wait until rising_edge(CLK);
+
+		data_send <= '0';
+
+		wait until rising_edge(CLK);
+
+		wait for 100 us;
+		wait until rising_edge(CLK);
+
+		data_send <= '1';
+		data_in <= data_value2;
 
 		wait until rising_edge(CLK);
 
