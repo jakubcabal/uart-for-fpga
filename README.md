@@ -7,7 +7,7 @@ Simple UART (Universal Asynchronous Receiver & Transmitter) module for serial co
 The UART module was tested in hardware. In the near future it will be implemented generic support for parity bit and set the number of stop bits. Stay tuned!
 
 **Synthesis resource usage summary:**
-- Logic element (LUT): 85
+- Logic element (LUT): 77
 - Registers (FF): 51
 
 *Synthesis was performed using Quartus II 64-Bit Version 13.0.1 with default settings.*
