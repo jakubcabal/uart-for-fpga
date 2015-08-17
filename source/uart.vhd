@@ -33,7 +33,9 @@ entity UART is
         DATA_BITS  : integer := 8;      -- legal values: 5,6,7,8, default is 8 dat bits
         --STOP_BITS  : integer;         -- TODO, now must be 1 stop bit
         --PARITY_BIT : integer;         -- TODO, now must be none parity bit
-        CLK_FREQ   : integer := 50e6    -- set system clock frequency in Hz, default is 50 MHz
+        CLK_FREQ   : integer := 50e6;   -- set system clock frequency in Hz, default is 50 MHz
+        INPUT_FIFO : boolean := False;  -- enable input data FIFO, default is disable
+        FIFO_DEPTH : integer := 256     -- set depth of input data FIFO, default is 256 items
     );
     Port (
         CLK        : in  std_logic; -- system clock
@@ -41,10 +43,10 @@ entity UART is
         -- UART RS232 INTERFACE
         TX_UART    : out std_logic;
         RX_UART    : in  std_logic;
-        -- USER TX INTERFACE
+        -- USER DATA OUTPUT INTERFACE
         DATA_OUT   : out std_logic_vector(DATA_BITS-1 downto 0);
         DATA_VLD   : out std_logic; -- when DATA_VLD = 1, data on DATA_OUT are valid
-        -- USER RX INTERFACE
+        -- USER DATA INPUT INTERFACE
         DATA_IN    : in  std_logic_vector(DATA_BITS-1 downto 0);
         DATA_SEND  : in  std_logic; -- when DATA_SEND = 1, data on DATA_IN will be transmit, DATA_SEND can set to 1 only when BUSY = 0
         BUSY       : out std_logic  -- when BUSY = 1 transiever is busy, you must not set DATA_SEND to 1
@@ -63,6 +65,11 @@ architecture FULL of UART is
     signal tx_bit_count_en      : std_logic;
     signal tx_bit_count_rst     : std_logic;
     signal tx_busy              : std_logic;
+    signal tx_data_in           : std_logic_vector(DATA_BITS-1 downto 0);
+    signal tx_data_send         : std_logic;
+
+    signal fifo_in_rd           : std_logic;
+    signal fifo_in_empty        : std_logic;
 
     signal rx_clk_en            : std_logic;
     signal rx_ticks             : integer range 0 to divider_value-1;
@@ -80,6 +87,43 @@ architecture FULL of UART is
     signal rx_nstate : state;
 
 begin
+
+    -- -------------------------------------------------------------------------
+    --                        UART INPUT DATA FIFO
+    -- -------------------------------------------------------------------------
+
+    data_in_fifo_g : if (INPUT_FIFO = True) generate
+
+        data_in_fifo_i: entity work.UART_FIFO
+        generic map (
+            DATA_WIDTH => DATA_BITS,
+            FIFO_DEPTH => FIFO_DEPTH
+        )
+        port map (
+            CLK       => CLK,
+            RST       => RST,
+            -- FIFO WRITE INTERFACE
+            DATA_IN   => DATA_IN,
+            WR_EN     => DATA_SEND,
+            FULL      => BUSY,
+            -- FIFO READ INTERFACE
+            DATA_OUT  => tx_data_in,
+            DATA_VLD  => tx_data_send,
+            RD_EN     => fifo_in_rd,
+            EMPTY     => fifo_in_empty
+        );
+
+        fifo_in_rd <= fifo_in_empty NOR tx_busy;
+
+    end generate;
+
+    no_data_in_fifo_g : if (INPUT_FIFO = False) generate
+
+        tx_data_in <= DATA_IN;
+        tx_data_send <= DATA_SEND;
+        BUSY <= tx_busy;
+
+    end generate;
 
     -- -------------------------------------------------------------------------
     --                        UART TRANSMITTER CLOCK DIVIDER
@@ -110,8 +154,8 @@ begin
         if (rising_edge(CLK)) then
             if (RST = '1') then
                 tx_data <= (others => '0');
-            elsif (DATA_SEND = '1' AND tx_busy = '0') then
-                tx_data <= DATA_IN;
+            elsif (tx_data_send = '1' AND tx_busy = '0') then
+                tx_data <= tx_data_in;
             end if;
         end if;
     end process;
@@ -139,8 +183,6 @@ begin
     --                        UART TRANSMITTER FSM
     -- -------------------------------------------------------------------------
 
-    BUSY <= tx_busy;
-
     -- PRESENT STATE REGISTER
     tx_pstate_reg : process (CLK) 
     begin
@@ -154,7 +196,7 @@ begin
     end process;
 
     -- NEXT STATE AND OUTPUTS LOGIC
-    process (tx_pstate, DATA_SEND, tx_clk_en, tx_data, tx_bit_count)
+    process (tx_pstate, tx_data_send, tx_clk_en, tx_data, tx_bit_count)
     begin
 
         case tx_pstate is
@@ -165,7 +207,7 @@ begin
                 tx_bit_count_rst <= '1';
                 tx_bit_count_en <= '0';
 
-                if (DATA_SEND = '1') then
+                if (tx_data_send = '1') then
                     tx_nstate <= txsync;
                 else
                     tx_nstate <= idle;

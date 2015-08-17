@@ -51,9 +51,11 @@ begin
  
 	utt: entity work.UART
     generic map (
-        BAUD_RATE => 115200, -- baud rate value, default is 115200
-        DATA_BITS => 8,      -- legal values: 5,6,7,8, default is 8 dat bits
-        CLK_FREQ  => 50e6    -- set system clock frequency in Hz, default is 50 MHz
+        BAUD_RATE  => 115200, -- baud rate value, default is 115200
+        DATA_BITS  => 8,      -- legal values: 5,6,7,8, default is 8 dat bits
+        CLK_FREQ   => 50e6,   -- set system clock frequency in Hz, default is 50 MHz
+        INPUT_FIFO => False,  -- enable input data FIFO, default is disable
+        FIFO_DEPTH => 256	  -- set depth of input data FIFO, default is 256 items
     )
     port map (
         CLK       => CLK,   -- system clock
