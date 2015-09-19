@@ -29,13 +29,13 @@ use IEEE.NUMERIC_STD.ALL;
 
 entity UART is
     Generic (
-        BAUD_RATE  : integer := 115200; -- baud rate value, default is 115200
-        DATA_BITS  : integer := 8;      -- legal values: 5,6,7,8, default is 8 dat bits
-        --STOP_BITS  : integer;         -- TODO, now must be 1 stop bit
-        --PARITY_BIT : integer;         -- TODO, now must be none parity bit
-        CLK_FREQ   : integer := 50e6;   -- set system clock frequency in Hz, default is 50 MHz
-        INPUT_FIFO : boolean := False;  -- enable input data FIFO, default is disable
-        FIFO_DEPTH : integer := 256     -- set depth of input data FIFO, default is 256 items
+        BAUD_RATE  : integer := 9600;  -- baud rate value, default is 9600
+        DATA_BITS  : integer := 8;     -- legal values: 5,6,7,8, default is 8 dat bits
+        --STOP_BITS  : integer;        -- TODO, now must be 1 stop bit
+        --PARITY_BIT : integer;        -- TODO, now must be none parity bit
+        CLK_FREQ   : integer := 50e6;  -- set system clock frequency in Hz, default is 50 MHz
+        INPUT_FIFO : boolean := False; -- enable input data FIFO, default is disable
+        FIFO_DEPTH : integer := 256    -- set depth of input data FIFO, default is 256 items
     );
     Port (
         CLK        : in  std_logic; -- system clock
