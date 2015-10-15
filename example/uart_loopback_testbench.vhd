@@ -27,21 +27,18 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
  
-entity UART_TESTBENCH is
-end UART_TESTBENCH;
+entity UART_LOOPBACK_TESTBENCH is
+end UART_LOOPBACK_TESTBENCH;
  
-architecture FULL of UART_TESTBENCH is 
+architecture FULL of UART_LOOPBACK_TESTBENCH is 
 
 	signal CLK         : std_logic := '0';
-	signal RST         : std_logic := '0';
+	signal RST_N       : std_logic := '0';
 	signal tx_uart     : std_logic;
 	signal rx_uart     : std_logic := '1';
 	signal data_vld    : std_logic;
-	signal data_out    : std_logic_vector(7 downto 0);
 	signal frame_error : std_logic;
-	signal data_send   : std_logic;
 	signal busy        : std_logic;
-	signal data_in     : std_logic_vector(7 downto 0);
 
    	constant clk_period  : time := 20 ns;
 	constant uart_period : time := 8696 ns;
@@ -50,28 +47,24 @@ architecture FULL of UART_TESTBENCH is
  
 begin
  
-	utt: entity work.UART
+	utt: entity work.UART_LOOPBACK
     generic map (
-        BAUD_RATE   => 115200,  -- baud rate value
-        DATA_BITS   => 8,     -- legal values: 5,6,7,8
-        CLK_FREQ    => 50e6,  -- set system clock frequency in Hz
-        INPUT_FIFO  => False, -- enable input data FIFO
-        FIFO_DEPTH  => 256	  -- set depth of input data FIFO
+        BAUD_RATE   => 115200, -- baud rate value
+        DATA_BITS   => 8,      -- legal values: 5,6,7,8
+        CLK_FREQ    => 50e6,   -- set system clock frequency in Hz
+        INPUT_FIFO  => True,   -- enable input data FIFO
+        FIFO_DEPTH  => 256	   -- set depth of input data FIFO
     )
     port map (
-        CLK         => CLK, -- system clock
-        RST         => RST, -- high active synchronous reset
+        CLK         => CLK,
+        RST_N       => RST_N,
         -- UART RS232 INTERFACE
-        TX_UART     => TX_UART,
-        RX_UART     => RX_UART,
-        -- USER TX INTERFACE
-        DATA_OUT    => data_out,
-        DATA_VLD    => data_vld,    -- when DATA_VLD = 1, data on DATA_OUT are valid
-        FRAME_ERROR => frame_error, -- when FRAME_ERROR = 1, stop bit was invalid, current and next data may be invalid
-        -- USER RX INTERFACE
-        DATA_IN     => data_in,
-        DATA_SEND   => data_send,   -- when DATA_SEND = 1, data on DATA_IN will be transmit, DATA_SEND can set to 1 only when BUSY = 0
-        BUSY        => busy         -- when BUSY = 1 transiever is busy, you must not set DATA_SEND to 1
+        TX_UART     => tx_uart,
+        RX_UART     => rx_uart,
+        -- DEBUG INTERFACE
+        BUSY        => busy,
+        FRAME_ERR   => frame_error,
+        DATA_VLD    => data_vld
     );
 
 	clk_process : process
@@ -85,9 +78,9 @@ begin
 	test_rx_uart : process
 	begin
 		rx_uart <= '1';
-		RST <= '1';
+		RST_N <= '0';
 		wait for 100 ns;
-      	RST <= '0';
+      	RST_N <= '1';
 
 		wait for uart_period;
 
@@ -113,39 +106,27 @@ begin
 		rx_uart <= '1'; -- stop bit
 		wait for uart_period;
 
-		wait;
+		rx_uart <= '0'; -- start bit
+		wait for uart_period;
 
-	end process;
+		for i in 0 to 7 loop
+			rx_uart <= data_value(i); -- data bits
+			wait for uart_period;
+		end loop;
 
-	test_tx_uart : process
-	begin
-		data_send <= '0';
-		RST <= '1';
-		wait for 100 ns;
-      	RST <= '0';
+		rx_uart <= '1'; -- stop bit
+		wait for uart_period;
 
-		wait until rising_edge(CLK);
+		rx_uart <= '0'; -- start bit
+		wait for uart_period;
 
-		data_send <= '1';
-		data_in <= data_value;
+		for i in 0 to 7 loop
+			rx_uart <= data_value2(i); -- data bits
+			wait for uart_period;
+		end loop;
 
-		wait until rising_edge(CLK);
-
-		data_send <= '0';
-
-		wait until rising_edge(CLK);
-
-		wait for 100 us;
-		wait until rising_edge(CLK);
-
-		data_send <= '1';
-		data_in <= data_value2;
-
-		wait until rising_edge(CLK);
-
-		data_send <= '0';
-
-		wait until rising_edge(CLK);
+		rx_uart <= '1'; -- stop bit
+		wait for uart_period;
 
 		wait;
 

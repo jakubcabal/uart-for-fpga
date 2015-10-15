@@ -29,37 +29,37 @@ use IEEE.NUMERIC_STD.ALL;
 
 entity UART is
     Generic (
-        BAUD_RATE  : integer := 9600;  -- baud rate value, default is 9600
-        DATA_BITS  : integer := 8;     -- legal values: 5,6,7,8, default is 8 dat bits
-        --STOP_BITS  : integer;        -- TODO, now must be 1 stop bit
-        --PARITY_BIT : integer;        -- TODO, now must be none parity bit
-        CLK_FREQ   : integer := 50e6;  -- set system clock frequency in Hz, default is 50 MHz
-        INPUT_FIFO : boolean := False; -- enable input data FIFO, default is disable
-        FIFO_DEPTH : integer := 256    -- set depth of input data FIFO, default is 256 items
+        BAUD_RATE   : integer := 115200; -- baud rate value
+        DATA_BITS   : integer := 8;      -- legal values: 5,6,7,8
+        --PARITY_BIT  : string  := "none"; -- TODO, now must be none parity bit, legal values: "none", "odd", "even", "mark", "space"
+        --STOP_BITS   : integer;           -- TODO, now must be 1 stop bit
+        CLK_FREQ    : integer := 50e6;   -- set system clock frequency in Hz
+        INPUT_FIFO  : boolean := False;  -- enable input data FIFO
+        FIFO_DEPTH  : integer := 256     -- set depth of input data FIFO
     );
     Port (
-        CLK        : in  std_logic; -- system clock
-        RST        : in  std_logic; -- high active synchronous reset
+        CLK         : in  std_logic; -- system clock
+        RST         : in  std_logic; -- high active synchronous reset
         -- UART RS232 INTERFACE
-        TX_UART    : out std_logic;
-        RX_UART    : in  std_logic;
+        TX_UART     : out std_logic;
+        RX_UART     : in  std_logic;
         -- USER DATA OUTPUT INTERFACE
-        DATA_OUT   : out std_logic_vector(DATA_BITS-1 downto 0);
-        DATA_VLD   : out std_logic; -- when DATA_VLD = 1, data on DATA_OUT are valid
+        DATA_OUT    : out std_logic_vector(DATA_BITS-1 downto 0);
+        DATA_VLD    : out std_logic; -- when DATA_VLD = 1, data on DATA_OUT are valid
+        FRAME_ERROR : out std_logic; -- when FRAME_ERROR = 1, stop bit was invalid, current and next data may be invalid
         -- USER DATA INPUT INTERFACE
-        DATA_IN    : in  std_logic_vector(DATA_BITS-1 downto 0);
-        DATA_SEND  : in  std_logic; -- when DATA_SEND = 1, data on DATA_IN will be transmit, DATA_SEND can set to 1 only when BUSY = 0
-        BUSY       : out std_logic  -- when BUSY = 1 transiever is busy, you must not set DATA_SEND to 1
+        DATA_IN     : in  std_logic_vector(DATA_BITS-1 downto 0);
+        DATA_SEND   : in  std_logic; -- when DATA_SEND = 1, data on DATA_IN will be transmit, DATA_SEND can set to 1 only when BUSY = 0
+        BUSY        : out std_logic  -- when BUSY = 1 transiever is busy, you must not set DATA_SEND to 1
     );
 end UART;
 
 architecture FULL of UART is
 
-    constant divider_value      : integer := CLK_FREQ / BAUD_RATE;
-    constant half_divider_value : integer := divider_value / 2;
+    constant divider_value      : integer := CLK_FREQ/(16*BAUD_RATE);
 
     signal tx_clk_en            : std_logic;
-    signal tx_ticks             : integer range 0 to divider_value-1;
+    signal tx_ticks             : integer range 0 to 15;
     signal tx_data              : std_logic_vector(DATA_BITS-1 downto 0);
     signal tx_bit_count         : integer range 0 to DATA_BITS-1;
     signal tx_bit_count_en      : std_logic;
@@ -68,11 +68,14 @@ architecture FULL of UART is
     signal tx_data_in           : std_logic_vector(DATA_BITS-1 downto 0);
     signal tx_data_send         : std_logic;
 
+    signal uart_ticks           : integer range 0 to divider_value-1;
+    signal uart_clk_en          : std_logic;
+
     signal fifo_in_rd           : std_logic;
     signal fifo_in_empty        : std_logic;
 
     signal rx_clk_en            : std_logic;
-    signal rx_ticks             : integer range 0 to divider_value-1;
+    signal rx_ticks             : integer range 0 to 15;
     signal rx_clk_divider_en    : std_logic;
     signal rx_data              : std_logic_vector(DATA_BITS-1 downto 0);
     signal rx_bit_count         : integer range 0 to DATA_BITS-1;
@@ -126,6 +129,26 @@ begin
     end generate;
 
     -- -------------------------------------------------------------------------
+    --                        UART CLOCK DIVIDER
+    -- -------------------------------------------------------------------------
+
+    uart_clk_divider : process (CLK)
+    begin
+        if (rising_edge(CLK)) then
+            if (RST = '1') then
+                uart_ticks <= 0;
+                uart_clk_en <= '0';
+            elsif (uart_ticks = divider_value-1) then
+                uart_ticks <= 0;
+                uart_clk_en <= '1';
+            else
+                uart_ticks <= uart_ticks + 1;
+                uart_clk_en <= '0';
+            end if;
+        end if;
+    end process;
+
+    -- -------------------------------------------------------------------------
     --                        UART TRANSMITTER CLOCK DIVIDER
     -- -------------------------------------------------------------------------
 
@@ -135,11 +158,16 @@ begin
             if (RST = '1') then
                 tx_ticks <= 0;
                 tx_clk_en <= '0';
-            elsif (tx_ticks = divider_value-1) then
-                tx_ticks <= 0;
-                tx_clk_en <= '1';
+            elsif (uart_clk_en = '1') then
+                if (tx_ticks = 15) then
+                    tx_ticks <= 0;
+                    tx_clk_en <= '1';
+                else
+                    tx_ticks <= tx_ticks + 1;
+                    tx_clk_en <= '0';
+                end if;
             else
-                tx_ticks <= tx_ticks + 1;
+                tx_ticks <= tx_ticks;
                 tx_clk_en <= '0';
             end if;
         end if;
@@ -244,21 +272,9 @@ begin
                 tx_bit_count_en <= '1';
 
                 if ((tx_clk_en = '1') AND (tx_bit_count = DATA_BITS-1)) then
-                    tx_nstate <= stopbit;
-                else
-                    tx_nstate <= databits;
-                end if;
-
-            when stopbit =>
-                tx_busy <= '1';
-                TX_UART <= '1';
-                tx_bit_count_rst <= '1';
-                tx_bit_count_en <= '0';
-
-                if (tx_clk_en = '1') then
                     tx_nstate <= idle;
                 else
-                    tx_nstate <= stopbit;
+                    tx_nstate <= databits;
                 end if;
 
             when others => 
@@ -279,15 +295,23 @@ begin
     begin
         if (rising_edge(CLK)) then
             if (rx_clk_divider_en = '1') then
-                if (rx_ticks = divider_value-1) then
-                    rx_ticks <= 0;
-                    rx_clk_en <= '1';
+                if (uart_clk_en = '1') then
+                    if (rx_ticks = 15) then
+                        rx_ticks <= 0;
+                        rx_clk_en <= '0';
+                    elsif (rx_ticks = 7) then
+                        rx_ticks <= rx_ticks + 1;
+                        rx_clk_en <= '1';
+                    else
+                        rx_ticks <= rx_ticks + 1;
+                        rx_clk_en <= '0';
+                    end if;
                 else
-                    rx_ticks <= rx_ticks + 1;
+                    rx_ticks <= rx_ticks;
                     rx_clk_en <= '0';
                 end if;
             else
-                rx_ticks <= half_divider_value;
+                rx_ticks <= 0;
                 rx_clk_en <= '0';
             end if;
         end if;
@@ -352,6 +376,7 @@ begin
      
             when idle =>
                 DATA_VLD <= '0';
+                FRAME_ERROR <= '0';
                 rx_bit_count_rst <= '1';
                 rx_bit_count_en <= '0';
                 rx_data_shreg_en <= '0';
@@ -365,6 +390,7 @@ begin
 
             when startbit =>
                 DATA_VLD <= '0';
+                FRAME_ERROR <= '0';
                 rx_bit_count_rst <= '0';
                 rx_bit_count_en <= '0';
                 rx_data_shreg_en <= '0';
@@ -378,6 +404,7 @@ begin
 
             when databits =>
                 DATA_VLD <= '0';
+                FRAME_ERROR <= '0';
                 rx_bit_count_rst <= '0';
                 rx_bit_count_en <= '1';
                 rx_data_shreg_en <= '1';
@@ -397,14 +424,17 @@ begin
 
                 if (rx_clk_en = '1') then
                     rx_nstate <= idle;
-                    DATA_VLD <= RX_UART;
+                    DATA_VLD <= '1';
+                    FRAME_ERROR <= NOT RX_UART;
                 else
                     rx_nstate <= stopbit;
                     DATA_VLD <= '0';
+                    FRAME_ERROR <= '0';
                 end if;
 
             when others =>
                 DATA_VLD <= '0';
+                FRAME_ERROR <= '0';
                 rx_bit_count_rst <= '1';
                 rx_bit_count_en <= '0';
                 rx_data_shreg_en <= '0';

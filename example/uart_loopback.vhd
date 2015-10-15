@@ -29,7 +29,7 @@ use IEEE.NUMERIC_STD.ALL;
  
 entity UART_LOOPBACK is
     Generic (
-        BAUD_RATE  : integer := 9600;
+        BAUD_RATE  : integer := 115200;
         DATA_BITS  : integer := 8;
         CLK_FREQ   : integer := 50e6;
         INPUT_FIFO : boolean := True;
@@ -40,42 +40,62 @@ entity UART_LOOPBACK is
         RST_N      : in  std_logic; -- low active synchronous reset
         -- UART INTERFACE
         TX_UART    : out std_logic;
-        RX_UART    : in  std_logic
+        RX_UART    : in  std_logic;
+        -- DEBUG INTERFACE
+        BUSY       : out std_logic;
+        FRAME_ERR  : out std_logic;
+        DATA_VLD   : out std_logic
     );
 end UART_LOOPBACK;
 
 architecture FULL of UART_LOOPBACK is
 
-    -- signals
-    signal data  : std_logic_vector(DATA_BITS-1 downto 0);
-    signal valid : std_logic;
-    signal reset : std_logic;
+    signal data        : std_logic_vector(DATA_BITS-1 downto 0);
+    signal valid       : std_logic;
+    signal reset       : std_logic;
+    signal frame_error : std_logic;
+    signal send        : std_logic;
 
 begin
 
 	reset <= not RST_N;
+	send <= valid WHEN (frame_error = '0') ELSE '0';
  
 	uart_i: entity work.UART
     generic map (
-        BAUD_RATE  => BAUD_RATE,  -- baud rate value, default is 9600
-        DATA_BITS  => DATA_BITS,  -- legal values: 5,6,7,8, default is 8 dat bits
-        CLK_FREQ   => CLK_FREQ,   -- set system clock frequency in Hz, default is 50 MHz
-        INPUT_FIFO => INPUT_FIFO, -- enable input data FIFO, default is disable
-        FIFO_DEPTH => FIFO_DEPTH  -- set depth of input data FIFO, default is 256 items
+        BAUD_RATE   => BAUD_RATE,
+        DATA_BITS   => DATA_BITS,
+        CLK_FREQ    => CLK_FREQ,
+        INPUT_FIFO  => INPUT_FIFO,
+        FIFO_DEPTH  => FIFO_DEPTH
     )
     port map (
-        CLK       => CLK,   -- system clock
-        RST       => reset, -- high active synchronous reset
+        CLK         => CLK,
+        RST         => reset,
         -- UART INTERFACE
-        TX_UART   => TX_UART,
-        RX_UART   => RX_UART,
+        TX_UART     => TX_UART,
+        RX_UART     => RX_UART,
         -- USER DATA OUTPUT INTERFACE
-        DATA_OUT  => data,
-        DATA_VLD  => valid, -- when DATA_VLD = 1, data on DATA_OUT are valid
+        DATA_OUT    => data,
+        DATA_VLD    => valid,
+        FRAME_ERROR => frame_error,
         -- USER DATA INPUT INTERFACE
-        DATA_IN   => data,
-        DATA_SEND => valid, -- when DATA_SEND = 1, data on DATA_IN will be transmit
-        BUSY      => open   -- when BUSY = 1, you must not set DATA_SEND to 1
+        DATA_IN     => data,
+        DATA_SEND   => send,
+        BUSY        => BUSY
     );
+
+    frame_err_gen : process (CLK)
+    begin
+        if (rising_edge(CLK)) then
+            if (reset = '1') then
+                FRAME_ERR <= '0';
+            elsif (valid = '1') then
+            	FRAME_ERR <= frame_error;
+            end if;
+        end if;
+    end process;
+
+    DATA_VLD <= valid;
 
 end FULL;
