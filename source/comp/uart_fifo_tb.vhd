@@ -27,10 +27,10 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
  
-entity UART_FIFO_TESTBENCH is
-end UART_FIFO_TESTBENCH;
+entity UART_FIFO_TB is
+end UART_FIFO_TB;
  
-architecture FULL of UART_FIFO_TESTBENCH is 
+architecture FULL of UART_FIFO_TB is 
 
 	signal CLK       : std_logic := '0';
 	signal RST       : std_logic := '0';
