@@ -31,8 +31,8 @@ entity UART is
     Generic (
         BAUD_RATE   : integer := 115200; -- baud rate value
         DATA_BITS   : integer := 8;      -- legal values: 5,6,7,8
-        --PARITY_BIT  : string  := "none"; -- TODO, now must be none parity bit, legal values: "none", "odd", "even", "mark", "space"
-        --STOP_BITS   : integer;           -- TODO, now must be 1 stop bit
+        PARITY_BIT  : string  := "none"; -- legal values: "none", "even", "odd", "mark", "space"
+        --STOP_BITS   : integer;         -- TODO, now must be 1 stop bit
         CLK_FREQ    : integer := 50e6;   -- set system clock frequency in Hz
         INPUT_FIFO  : boolean := False;  -- enable input data FIFO
         FIFO_DEPTH  : integer := 256     -- set depth of input data FIFO
@@ -67,6 +67,7 @@ architecture FULL of UART is
     signal tx_busy              : std_logic;
     signal tx_data_in           : std_logic_vector(DATA_BITS-1 downto 0);
     signal tx_data_send         : std_logic;
+    signal tx_parity_bit        : std_logic;
 
     signal uart_ticks           : integer range 0 to divider_value-1;
     signal uart_clk_en          : std_logic;
@@ -82,8 +83,11 @@ architecture FULL of UART is
     signal rx_bit_count_en      : std_logic;
     signal rx_bit_count_rst     : std_logic;
     signal rx_data_shreg_en     : std_logic;
+    signal rx_parity_bit        : std_logic;
+    signal rx_parity_error      : std_logic := '0';
+    signal rx_parity_check_en   : std_logic;
 
-    type state is (idle, txsync, startbit, databits, stopbit);
+    type state is (idle, txsync, startbit, databits, paritybit, stopbit);
     signal tx_pstate : state;
     signal tx_nstate : state;
     signal rx_pstate : state;
@@ -208,6 +212,24 @@ begin
     end process;
 
     -- -------------------------------------------------------------------------
+    --                        UART TRANSMITTER PARITY GENERATOR
+    -- -------------------------------------------------------------------------
+
+    tx_parity_g : if (PARITY_BIT /= "none") generate
+
+        tx_parity_gen_i: entity work.UART_PARITY
+        generic map (
+            DATA_WIDTH  => DATA_BITS,
+            PARITY_TYPE => PARITY_BIT
+        )
+        port map (
+            DATA_IN     => tx_data,
+            PARITY_OUT  => tx_parity_bit
+        );
+
+    end generate;
+
+    -- -------------------------------------------------------------------------
     --                        UART TRANSMITTER FSM
     -- -------------------------------------------------------------------------
 
@@ -224,7 +246,7 @@ begin
     end process;
 
     -- NEXT STATE AND OUTPUTS LOGIC
-    process (tx_pstate, tx_data_send, tx_clk_en, tx_data, tx_bit_count)
+    process (tx_pstate, tx_data_send, tx_clk_en, tx_data, tx_bit_count, tx_parity_bit)
     begin
 
         case tx_pstate is
@@ -272,9 +294,25 @@ begin
                 tx_bit_count_en <= '1';
 
                 if ((tx_clk_en = '1') AND (tx_bit_count = DATA_BITS-1)) then
-                    tx_nstate <= idle;
+                    if (PARITY_BIT = "none") then
+                        tx_nstate <= idle;
+                    else
+                        tx_nstate <= paritybit;
+                    end if ;
                 else
                     tx_nstate <= databits;
+                end if;
+
+            when paritybit =>
+                tx_busy <= '1';
+                TX_UART <= tx_parity_bit;
+                tx_bit_count_rst <= '1';
+                tx_bit_count_en <= '0';
+
+                if (tx_clk_en = '1') then
+                    tx_nstate <= idle;
+                else
+                    tx_nstate <= paritybit;
                 end if;
 
             when others => 
@@ -354,6 +392,35 @@ begin
     DATA_OUT <= rx_data;
 
     -- -------------------------------------------------------------------------
+    --                        UART RECEIVER PARITY GENERATOR AND CHECK
+    -- -------------------------------------------------------------------------
+
+    rx_parity_g : if (PARITY_BIT /= "none") generate
+
+        rx_parity_gen_i: entity work.UART_PARITY
+        generic map (
+            DATA_WIDTH  => DATA_BITS,
+            PARITY_TYPE => PARITY_BIT
+        )
+        port map (
+            DATA_IN     => rx_data,
+            PARITY_OUT  => rx_parity_bit
+        );
+
+        rx_parity_check_reg : process (CLK) 
+        begin
+            if (rising_edge(CLK)) then
+                if (RST = '1') then
+                    rx_parity_error <= '0';
+                elsif (rx_parity_check_en = '1') then
+                    rx_parity_error <= rx_parity_bit XOR RX_UART;
+                end if;
+            end if;
+        end process;
+
+    end generate;
+
+    -- -------------------------------------------------------------------------
     --                        UART RECEIVER FSM
     -- -------------------------------------------------------------------------
 
@@ -370,7 +437,7 @@ begin
     end process;
 
     -- NEXT STATE AND OUTPUTS LOGIC
-    process (rx_pstate, RX_UART, rx_clk_en, rx_bit_count)
+    process (rx_pstate, RX_UART, rx_clk_en, rx_bit_count, rx_parity_error)
     begin
         case rx_pstate is
      
@@ -381,6 +448,7 @@ begin
                 rx_bit_count_en <= '0';
                 rx_data_shreg_en <= '0';
                 rx_clk_divider_en <= '0';
+                rx_parity_check_en <= '0';
 
                 if (RX_UART = '0') then
                     rx_nstate <= startbit;
@@ -395,6 +463,7 @@ begin
                 rx_bit_count_en <= '0';
                 rx_data_shreg_en <= '0';
                 rx_clk_divider_en <= '1';
+                rx_parity_check_en <= '0';
 
                 if (rx_clk_en = '1') then
                     rx_nstate <= databits;
@@ -409,11 +478,32 @@ begin
                 rx_bit_count_en <= '1';
                 rx_data_shreg_en <= '1';
                 rx_clk_divider_en <= '1';
+                rx_parity_check_en <= '0';
 
                 if ((rx_clk_en = '1') AND (rx_bit_count = DATA_BITS-1)) then
-                    rx_nstate <= stopbit;
+                    if (PARITY_BIT = "none") then
+                        rx_nstate <= stopbit;
+                    else
+                        rx_nstate <= paritybit;
+                    end if ;
                 else
                     rx_nstate <= databits;
+                end if;
+
+            when paritybit =>
+                DATA_VLD <= '0';
+                FRAME_ERROR <= '0';
+                rx_bit_count_rst <= '1';
+                rx_bit_count_en <= '0';
+                rx_data_shreg_en <= '0';
+                rx_clk_divider_en <= '1';
+
+                if (rx_clk_en = '1') then
+                    rx_nstate <= stopbit;
+                    rx_parity_check_en <= '1';
+                else
+                    rx_nstate <= paritybit;
+                    rx_parity_check_en <= '0';
                 end if;
 
             when stopbit =>
@@ -421,10 +511,11 @@ begin
                 rx_bit_count_en <= '0';
                 rx_data_shreg_en <= '0';
                 rx_clk_divider_en <= '1';
+                rx_parity_check_en <= '0';
 
                 if (rx_clk_en = '1') then
                     rx_nstate <= idle;
-                    DATA_VLD <= '1';
+                    DATA_VLD <= NOT rx_parity_error;
                     FRAME_ERROR <= NOT RX_UART;
                 else
                     rx_nstate <= stopbit;
@@ -439,6 +530,7 @@ begin
                 rx_bit_count_en <= '0';
                 rx_data_shreg_en <= '0';
                 rx_clk_divider_en <= '0';
+                rx_parity_check_en <= '0';
                 rx_nstate <= idle;
          
         end case;

@@ -49,11 +49,12 @@ begin
  
 	utt: entity work.UART_LOOPBACK
     generic map (
-        BAUD_RATE   => 115200, -- baud rate value
-        DATA_BITS   => 8,      -- legal values: 5,6,7,8
-        CLK_FREQ    => 50e6,   -- set system clock frequency in Hz
-        INPUT_FIFO  => True,   -- enable input data FIFO
-        FIFO_DEPTH  => 256	   -- set depth of input data FIFO
+        BAUD_RATE   => 115200,
+        DATA_BITS   => 8,
+        PARITY_BIT  => "none",
+        CLK_FREQ    => 50e6,
+        INPUT_FIFO  => True,
+        FIFO_DEPTH  => 256
     )
     port map (
         CLK         => CLK,

@@ -29,11 +29,12 @@ use IEEE.NUMERIC_STD.ALL;
  
 entity UART_LOOPBACK is
     Generic (
-        BAUD_RATE  : integer := 115200;
-        DATA_BITS  : integer := 8;
-        CLK_FREQ   : integer := 50e6;
-        INPUT_FIFO : boolean := True;
-        FIFO_DEPTH : integer := 256
+        BAUD_RATE  : integer := 115200; -- baud rate value
+        DATA_BITS  : integer := 8;      -- legal values: 5,6,7,8
+        PARITY_BIT : string  := "none"; -- legal values: "none", "even", "odd", "mark", "space"
+        CLK_FREQ   : integer := 50e6;   -- set system clock frequency in Hz
+        INPUT_FIFO : boolean := True;   -- enable input data FIFO
+        FIFO_DEPTH : integer := 256     -- set depth of input data FIFO
     );
     Port (
         CLK        : in  std_logic; -- system clock
@@ -65,6 +66,7 @@ begin
     generic map (
         BAUD_RATE   => BAUD_RATE,
         DATA_BITS   => DATA_BITS,
+        PARITY_BIT  => PARITY_BIT,
         CLK_FREQ    => CLK_FREQ,
         INPUT_FIFO  => INPUT_FIFO,
         FIFO_DEPTH  => FIFO_DEPTH
