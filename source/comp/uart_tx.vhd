@@ -13,18 +13,18 @@ use IEEE.NUMERIC_STD.ALL;
 
 entity UART_TX is
     Generic (
-        PARITY_BIT  : string := "none" -- legal values: "none", "even", "odd", "mark", "space"
+        PARITY_BIT  : string := "none" -- type of parity: "none", "even", "odd", "mark", "space"
     );
     Port (
         CLK         : in  std_logic; -- system clock
         RST         : in  std_logic; -- high active synchronous reset
         -- UART INTERFACE
         UART_CLK_EN : in  std_logic; -- oversampling (16x) UART clock enable
-        UART_TXD    : out std_logic;
+        UART_TXD    : out std_logic; -- serial transmit data
         -- USER DATA INPUT INTERFACE
-        DATA_IN     : in  std_logic_vector(7 downto 0);
-        DATA_SEND   : in  std_logic; -- when DATA_SEND = 1, data on DATA_IN will be transmit, DATA_SEND can set to 1 only when BUSY = 0
-        BUSY        : out std_logic  -- when BUSY = 1 transiever is busy, you must not set DATA_SEND to 1
+        DATA_IN     : in  std_logic_vector(7 downto 0); -- input data
+        DATA_SEND   : in  std_logic; -- when DATA_SEND = 1, input data are valid and will be transmit
+        BUSY        : out std_logic  -- when BUSY = 1, transmitter is busy and you must not set DATA_SEND to 1
     );
 end UART_TX;
 
@@ -52,27 +52,33 @@ begin
     -- UART TRANSMITTER CLOCK DIVIDER
     -- -------------------------------------------------------------------------
 
-    uart_tx_clk_divider : process (CLK)
+    uart_tx_clk_divider_p : process (CLK)
     begin
         if (rising_edge(CLK)) then
             if (tx_clk_divider_en = '1') then
                 if (uart_clk_en = '1') then
                     if (tx_ticks = "1111") then
                         tx_ticks <= (others => '0');
-                        tx_clk_en <= '0';
-                    elsif (tx_ticks = "0001") then
-                        tx_ticks <= tx_ticks + 1;
-                        tx_clk_en <= '1';
                     else
                         tx_ticks <= tx_ticks + 1;
-                        tx_clk_en <= '0';
                     end if;
                 else
                     tx_ticks <= tx_ticks;
-                    tx_clk_en <= '0';
                 end if;
             else
                 tx_ticks <= (others => '0');
+            end if;
+        end if;
+    end process;
+
+    uart_tx_clk_en_p : process (CLK)
+    begin
+        if (rising_edge(CLK)) then
+            if (RST = '1') then
+                tx_clk_en <= '0';
+            elsif (uart_clk_en = '1' AND tx_ticks = "0001") then
+                tx_clk_en <= '1';
+            else
                 tx_clk_en <= '0';
             end if;
         end if;
@@ -82,7 +88,7 @@ begin
     -- UART TRANSMITTER INPUT DATA REGISTER
     -- -------------------------------------------------------------------------
 
-    uart_tx_input_data_reg : process (CLK)
+    uart_tx_input_data_reg_p : process (CLK)
     begin
         if (rising_edge(CLK)) then
             if (RST = '1') then
@@ -97,7 +103,7 @@ begin
     -- UART TRANSMITTER BIT COUNTER
     -- -------------------------------------------------------------------------
 
-    uart_tx_bit_counter : process (CLK)
+    uart_tx_bit_counter_p : process (CLK)
     begin
         if (rising_edge(CLK)) then
             if (RST = '1') then
@@ -136,7 +142,7 @@ begin
     -- UART TRANSMITTER OUTPUT DATA REGISTER
     -- -------------------------------------------------------------------------
 
-    uart_tx_output_data_reg : process (CLK)
+    uart_tx_output_data_reg_p : process (CLK)
     begin
         if (rising_edge(CLK)) then
             if (RST = '1') then
