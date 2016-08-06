@@ -6,7 +6,7 @@ Simple UART for FPGA is UART (Universal Asynchronous Receiver & Transmitter) con
 
 The UART controller was simulated and tested in hardware.
 
-# Inputs and outputs ports:
+# Table of inputs and outputs ports:
 
 Port name | IN/OUT | Width | Port description
 ---|:---:|:---:|---
@@ -19,14 +19,30 @@ DATA_SEND | IN | 1b | Send data byte for transmit.
 BUSY | OUT | 1b | Transmitter is busy, can not send next data.
 DATA_OUT | OUT | 8b | Received data byte.
 DATA_VLD | OUT | 1b | Received data byte is valid.
-FRAME_ERROR | OUT | 1b | Stop bit is invalid, current and next data may be corrupted.
+FRAME_ERROR | OUT | 1b | Stop bit is invalid, data may be corrupted.
 
-# Synthesis resource usage summary:
+# Table of generics:
 
-Parity | LE (LUT) | FF | BRAM
-:---:|:---:|:---:|:---:
-none | 80 | 55 | 0
-even/odd | 91 | 58 | 0
-mark/space | 84 | 58 | 0
+Generic name | Type | Default value | Generic description
+---|:---:|:---:|:---
+CLK_FREQ | integer | 50e6 | System clock.
+BAUD_RATE | integer | 115200 | Baud rate value.
+PARITY_BIT | string | "none" | Type of parity: "none", "even", "odd", "mark", "space".
+USE_DEBOUNCER | boolean | True | Use debounce?
 
-*Synthesis was performed using Quartus II 64-Bit Version 13.0.1 for FPGA Altera Cyclone II with these settings: 115200 baud rate and 50 MHz system clock .*
+# Table of resource usage summary:
+
+Use debouncer | Parity type | LE (LUT+FF) | LUT | FF | BRAM | Fmax
+:---:|:---:|:---:|:---:|:---:|:---:
+True | none | 77 | 64 | 55 | 0 | 202.2 MHz
+True | even/odd | 82 | 75 | 58 | 0 | 162.5 MHz
+True | mark/space | 80 | 68 | 58 | 0 | 184.5 MHz
+False | none | 72 | 59 | 50 | 0 | 182.7 MHz
+False | even/odd | 77 | 70 | 53 | 0 | 155.6 MHz
+False | mark/space | 75 | 62 | 53 | 0 | 200.8 MHz
+
+*Synthesis was performed using Quartus II 64-Bit Version 13.0.1 for FPGA Altera Cyclone II with enable force use of synchronous clear. Setting of some generics: BAUD_RATE = 115200, CLK_FREQ = 50e6.*
+
+# License:
+
+This UART controller is available under the MIT license (MIT). Please read [LICENSE file](LICENSE).
