@@ -33,7 +33,7 @@ USE_DEBOUNCER | boolean | True | Use debounce?
 # Table of resource usage summary:
 
 Use debouncer | Parity type | LE (LUT+FF) | LUT | FF | BRAM | Fmax
-:---:|:---:|:---:|:---:|:---:|:---:
+:---:|:---:|:---:|:---:|:---:|:---:|:---:
 True | none | 77 | 64 | 55 | 0 | 202.2 MHz
 True | even/odd | 82 | 75 | 58 | 0 | 162.5 MHz
 True | mark/space | 80 | 68 | 58 | 0 | 184.5 MHz
