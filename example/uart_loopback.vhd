@@ -3,7 +3,7 @@
 --------------------------------------------------------------------------------
 -- MODULE:  UART LOOPBACK EXAMPLE TOP MODULE
 -- AUTHORS: Jakub Cabal <jakubcabal@gmail.com>
--- lICENSE: The MIT License (MIT)
+-- LICENSE: The MIT License (MIT), please read LICENSE file
 -- WEBSITE: https://github.com/jakubcabal/uart_for_fpga
 --------------------------------------------------------------------------------
 
