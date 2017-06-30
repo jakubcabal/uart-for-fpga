@@ -4,7 +4,7 @@
 -- MODULE:  UART TRANSMITTER
 -- AUTHORS: Jakub Cabal <jakubcabal@gmail.com>
 -- LICENSE: The MIT License (MIT), please read LICENSE file
--- WEBSITE: https://github.com/jakubcabal/uart_for_fpga
+-- WEBSITE: https://github.com/jakubcabal/uart-for-fpga
 --------------------------------------------------------------------------------
 
 library IEEE;
@@ -135,7 +135,7 @@ begin
     end generate;
 
     uart_tx_noparity_g : if (PARITY_BIT = "none") generate
-        tx_parity_bit <= 'Z';
+        tx_parity_bit <= '0';
     end generate;
 
     -- -------------------------------------------------------------------------

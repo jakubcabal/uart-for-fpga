@@ -4,7 +4,7 @@
 -- MODULE:  UART TOP MODULE
 -- AUTHORS: Jakub Cabal <jakubcabal@gmail.com>
 -- LICENSE: The MIT License (MIT), please read LICENSE file
--- WEBSITE: https://github.com/jakubcabal/uart_for_fpga
+-- WEBSITE: https://github.com/jakubcabal/uart-for-fpga
 --------------------------------------------------------------------------------
 
 library IEEE;
@@ -29,20 +29,20 @@ entity UART is
         UART_TXD    : out std_logic; -- serial transmit data
         UART_RXD    : in  std_logic; -- serial receive data
         -- USER DATA INPUT INTERFACE
-        DATA_IN     : in  std_logic_vector(7 downto 0); -- input data
-        DATA_SEND   : in  std_logic; -- when DATA_SEND = 1, input data are valid and will be transmit
-        BUSY        : out std_logic; -- when BUSY = 1, transmitter is busy and you must not set DATA_SEND to 1
+        DIN         : in  std_logic_vector(7 downto 0); -- data to be transmitted over UART
+        DIN_VLD     : in  std_logic; -- when DIN_VLD = 1, DIN is valid and will be accepted for transmiting
+        BUSY        : out std_logic; -- when BUSY = 1, transmitter is busy and DIN can not be accepted
         -- USER DATA OUTPUT INTERFACE
-        DATA_OUT    : out std_logic_vector(7 downto 0); -- output data
-        DATA_VLD    : out std_logic; -- when DATA_VLD = 1, output data are valid
-        FRAME_ERROR : out std_logic  -- when FRAME_ERROR = 1, stop bit was invalid
+        DOUT        : out std_logic_vector(7 downto 0); -- data received via UART
+        DOUT_VLD    : out std_logic; -- when DOUT_VLD = 1, DOUT is valid (is assert only for one clock cycle)
+        FRAME_ERROR : out std_logic  -- when FRAME_ERROR = 1, stop bit was invalid (is assert only for one clock cycle)
     );
 end UART;
 
 architecture FULL of UART is
 
-    constant DIVIDER_VALUE    : integer := CLK_FREQ/(16*BAUD_RATE);
-    constant CLK_CNT_WIDTH    : integer := integer(ceil(log2(real(DIVIDER_VALUE))));
+    constant DIVIDER_VALUE    : integer  := CLK_FREQ/(16*BAUD_RATE);
+    constant CLK_CNT_WIDTH    : integer  := integer(ceil(log2(real(DIVIDER_VALUE))));
     constant CLK_CNT_MAX      : unsigned := to_unsigned(DIVIDER_VALUE-1, CLK_CNT_WIDTH);
 
     signal uart_clk_cnt       : unsigned(CLK_CNT_WIDTH-1 downto 0);
@@ -53,7 +53,7 @@ architecture FULL of UART is
 begin
 
     -- -------------------------------------------------------------------------
-    -- UART CLOCK COUNTER AND CLOCK ENABLE FLAG
+    --  UART CLOCK COUNTER AND CLOCK ENABLE FLAG
     -- -------------------------------------------------------------------------
 
     uart_clk_cnt_p : process (CLK)
@@ -62,7 +62,7 @@ begin
             if (RST = '1') then
                 uart_clk_cnt <= (others => '0');
             else
-                if (uart_clk_cnt = CLK_CNT_MAX) then
+                if (uart_clk_en = '1') then
                     uart_clk_cnt <= (others => '0');
                 else
                     uart_clk_cnt <= uart_clk_cnt + 1;
@@ -71,21 +71,10 @@ begin
         end if;
     end process;
 
-    uart_clk_en_reg_p : process (CLK)
-    begin
-        if (rising_edge(CLK)) then
-            if (RST = '1') then
-                uart_clk_en <= '0';
-            elsif (uart_clk_cnt = CLK_CNT_MAX) then
-                uart_clk_en <= '1';
-            else
-                uart_clk_en <= '0';
-            end if;
-        end if;
-    end process;
+    uart_clk_en <= '1' when (uart_clk_cnt = CLK_CNT_MAX) else '0';
 
     -- -------------------------------------------------------------------------
-    -- UART RXD SHIFT REGISTER AND DEBAUNCER
+    --  UART RXD SHIFT REGISTER AND DEBAUNCER
     -- -------------------------------------------------------------------------
 
     use_debouncer_g : if (USE_DEBOUNCER = True) generate
@@ -106,9 +95,9 @@ begin
                 if (RST = '1') then
                     uart_rxd_debounced <= '1';
                 else
-                    uart_rxd_debounced <= uart_rxd_shreg(0) OR
-                                          uart_rxd_shreg(1) OR
-                                          uart_rxd_shreg(2) OR
+                    uart_rxd_debounced <= uart_rxd_shreg(0) or
+                                          uart_rxd_shreg(1) or
+                                          uart_rxd_shreg(2) or
                                           uart_rxd_shreg(3);
                 end if;
             end if;
@@ -120,7 +109,7 @@ begin
     end generate;
 
     -- -------------------------------------------------------------------------
-    -- UART TRANSMITTER
+    --  UART TRANSMITTER
     -- -------------------------------------------------------------------------
 
     uart_tx_i: entity work.UART_TX
@@ -134,13 +123,13 @@ begin
         UART_CLK_EN => uart_clk_en,
         UART_TXD    => UART_TXD,
         -- USER DATA INPUT INTERFACE
-        DATA_IN     => DATA_IN,
-        DATA_SEND   => DATA_SEND,
+        DATA_IN     => DIN,
+        DATA_SEND   => DIN_VLD,
         BUSY        => BUSY
     );
 
     -- -------------------------------------------------------------------------
-    -- UART RECEIVER
+    --  UART RECEIVER
     -- -------------------------------------------------------------------------
 
     uart_rx_i: entity work.UART_RX
@@ -154,8 +143,8 @@ begin
         UART_CLK_EN => uart_clk_en,
         UART_RXD    => uart_rxd_debounced,
         -- USER DATA OUTPUT INTERFACE
-        DATA_OUT    => DATA_OUT,
-        DATA_VLD    => DATA_VLD,
+        DATA_OUT    => DOUT,
+        DATA_VLD    => DOUT_VLD,
         FRAME_ERROR => FRAME_ERROR
     );
 

@@ -4,7 +4,7 @@
 -- MODULE:  TESTBANCH OF UART TOP MODULE
 -- AUTHORS: Jakub Cabal <jakubcabal@gmail.com>
 -- LICENSE: The MIT License (MIT), please read LICENSE file
--- WEBSITE: https://github.com/jakubcabal/uart_for_fpga
+-- WEBSITE: https://github.com/jakubcabal/uart-for-fpga
 --------------------------------------------------------------------------------
 
 library IEEE;
@@ -16,16 +16,16 @@ end UART_TB;
 
 architecture FULL of UART_TB is
 
-	signal CLK           : std_logic := '0';
-	signal RST           : std_logic := '0';
+	signal CLK           : std_logic;
+	signal RST           : std_logic;
 	signal tx_uart       : std_logic;
-	signal rx_uart       : std_logic := '1';
-	signal data_vld      : std_logic;
-	signal data_out      : std_logic_vector(7 downto 0);
-	signal frame_error   : std_logic;
-	signal data_send     : std_logic;
+	signal rx_uart       : std_logic;
+	signal din           : std_logic_vector(7 downto 0);
+	signal din_vld       : std_logic;
 	signal busy          : std_logic;
-	signal data_in       : std_logic_vector(7 downto 0);
+	signal dout          : std_logic_vector(7 downto 0);
+	signal dout_vld      : std_logic;
+	signal frame_error   : std_logic;
 
     constant clk_period  : time := 20 ns;
 	constant uart_period : time := 8680.56 ns;
@@ -47,13 +47,13 @@ begin
         UART_TXD    => tx_uart,
         UART_RXD    => rx_uart,
         -- USER DATA INPUT INTERFACE
-        DATA_OUT    => data_out,
-        DATA_VLD    => data_vld,
-        FRAME_ERROR => frame_error,
-        -- USER DATA OUTPUT INTERFACE
-        DATA_IN     => data_in,
-        DATA_SEND   => data_send,
+		DIN         => din,
+        DIN_VLD     => din_vld,
         BUSY        => busy
+        -- USER DATA OUTPUT INTERFACE
+        DOUT        => dout,
+        DOUT_VLD    => dout_vld,
+        FRAME_ERROR => frame_error,
     );
 
 	clk_process : process
@@ -64,13 +64,18 @@ begin
 		wait for clk_period/2;
 	end process;
 
+	rst_gen_p : process
+	begin
+		RST <= '1';
+		wait for 100 ns;
+      	RST <= '0';
+	end process;
+
 	test_rx_uart : process
 	begin
 		rx_uart <= '1';
-		RST <= '1';
-		wait for 100 ns;
-    	RST <= '0';
 
+		wait until RST = '0';
 		wait until rising_edge(CLK);
 
 		rx_uart <= '0'; -- start bit
@@ -101,34 +106,27 @@ begin
 
 	test_tx_uart : process
 	begin
-		data_send <= '0';
-		RST <= '1';
-		wait for 100 ns;
-      	RST <= '0';
+		din_vld <= '0';
+
+		wait until RST = '0';
+		wait until rising_edge(CLK);
+		din_vld <= '1';
+		din <= data_value;
 
 		wait until rising_edge(CLK);
-
-		data_send <= '1';
-		data_in <= data_value;
+		din_vld <= '0';
 
 		wait until rising_edge(CLK);
-
-		data_send <= '0';
-
-		wait until rising_edge(CLK);
-
 		wait for 80 us;
-		wait until rising_edge(CLK);
-
-		data_send <= '1';
-		data_in <= data_value2;
 
 		wait until rising_edge(CLK);
-
-		data_send <= '0';
+		din_vld <= '1';
+		din <= data_value2;
 
 		wait until rising_edge(CLK);
+		din_vld <= '0';
 
+		wait until rising_edge(CLK);
 		wait;
 
 	end process;
