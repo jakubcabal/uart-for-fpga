@@ -6,29 +6,36 @@ Simple UART for FPGA is UART (Universal Asynchronous Receiver & Transmitter) con
 
 The UART controller was simulated and tested in hardware.
 
-# Table of inputs and outputs ports:
+# Inputs and outputs ports:
 
-Port name | IN/OUT | Width | Port description
----|:---:|:---:|---
-CLK | IN | 1b | System clock.
-RST | IN | 1b | High active synchronous reset.
-UART_TXD | OUT | 1b | Serial transmit data.
-UART_RXD | IN | 1b | Serial receive data.
-DATA_IN | IN | 8b | Data byte for transmit.
-DATA_SEND | IN | 1b | Send data byte for transmit.
-BUSY | OUT | 1b | Transmitter is busy, can not send next data.
-DATA_OUT | OUT | 8b | Received data byte.
-DATA_VLD | OUT | 1b | Received data byte is valid.
-FRAME_ERROR | OUT | 1b | Stop bit is invalid, data may be corrupted.
+```
+-- CLOCK AND RESET
+CLK         : in  std_logic; -- system clock
+RST         : in  std_logic; -- high active synchronous reset
 
-# Table of generics:
+-- UART INTERFACE
+UART_TXD    : out std_logic; -- serial transmit data
+UART_RXD    : in  std_logic; -- serial receive data
 
-Generic name | Type | Default value | Generic description
----|:---:|:---:|:---
-CLK_FREQ | integer | 50e6 | System clock.
-BAUD_RATE | integer | 115200 | Baud rate value.
-PARITY_BIT | string | "none" | Type of parity: "none", "even", "odd", "mark", "space".
-USE_DEBOUNCER | boolean | True | Use debounce?
+-- USER DATA INPUT INTERFACE
+DIN         : in  std_logic_vector(7 downto 0); -- data to be transmitted over UART
+DIN_VLD     : in  std_logic; -- when DIN_VLD = 1, DIN is valid and will be accepted for transmiting
+BUSY        : out std_logic; -- when BUSY = 1, transmitter is busy and DIN can not be accepted
+
+-- USER DATA OUTPUT INTERFACE
+DOUT        : out std_logic_vector(7 downto 0); -- data received via UART
+DOUT_VLD    : out std_logic; -- when DOUT_VLD = 1, DOUT is valid (is assert only for one clock cycle)
+FRAME_ERROR : out std_logic  -- when FRAME_ERROR = 1, stop bit was invalid (is assert only for one clock cycle)
+```
+
+# Generics:
+
+```
+CLK_FREQ      : integer := 50e6;   -- system clock frequency in Hz
+BAUD_RATE     : integer := 115200; -- baud rate value
+PARITY_BIT    : string  := "none"; -- type of parity: "none", "even", "odd", "mark", "space"
+USE_DEBOUNCER : boolean := True    -- enable/disable debouncer
+```
 
 # Table of resource usage summary:
 
@@ -42,6 +49,14 @@ False | even/odd | 77 | 70 | 53 | 0 | 155.6 MHz
 False | mark/space | 75 | 62 | 53 | 0 | 200.8 MHz
 
 *Synthesis was performed using Quartus II 64-Bit Version 13.0.1 for FPGA Altera Cyclone II with enable force use of synchronous clear. Setting of some generics: BAUD_RATE = 115200, CLK_FREQ = 50e6.*
+
+# Simulation:
+
+A basic simulation is prepared in the repository. You can use the prepared TCL script to run simulation in ModelSim.
+
+```
+vsim -do sim/sim.tcl
+```
 
 # License:
 
