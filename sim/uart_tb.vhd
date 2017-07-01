@@ -49,11 +49,11 @@ begin
         -- USER DATA INPUT INTERFACE
 		DIN         => din,
         DIN_VLD     => din_vld,
-        BUSY        => busy
+        BUSY        => busy,
         -- USER DATA OUTPUT INTERFACE
         DOUT        => dout,
         DOUT_VLD    => dout_vld,
-        FRAME_ERROR => frame_error,
+        FRAME_ERROR => frame_error
     );
 
 	clk_process : process
@@ -67,8 +67,9 @@ begin
 	rst_gen_p : process
 	begin
 		RST <= '1';
-		wait for 100 ns;
+		wait for clk_period*3;
       	RST <= '0';
+		wait;
 	end process;
 
 	test_rx_uart : process
@@ -106,12 +107,12 @@ begin
 
 	test_tx_uart : process
 	begin
+		din <= data_value;
 		din_vld <= '0';
 
 		wait until RST = '0';
 		wait until rising_edge(CLK);
 		din_vld <= '1';
-		din <= data_value;
 
 		wait until rising_edge(CLK);
 		din_vld <= '0';

@@ -7,12 +7,15 @@
 # WEBSITE: https://github.com/jakubcabal/uart-for-fpga
 #-------------------------------------------------------------------------------
 
+# Create work library
+vlib work
+
 # Compile VHDL files
-vcom ../rtl/comp/uart_parity.vhd
-vcom ../rtl/comp/uart_tx.vhd
-vcom ../rtl/comp/uart_rx.vhd
-vcom ../rtl/uart.vhd
-vcom ./uart_tb.vhd
+vcom -93 ../rtl/comp/uart_parity.vhd
+vcom -93 ../rtl/comp/uart_tx.vhd
+vcom -93 ../rtl/comp/uart_rx.vhd
+vcom -93 ../rtl/uart.vhd
+vcom -93 ./uart_tb.vhd
 
 # Load testbench
 vsim work.uart_tb
@@ -20,4 +23,4 @@ vsim work.uart_tb
 # Setup and start simulation
 add wave *
 #add wave sim:/uart_tb/utt/*
-run 10 us
+run 200 us
