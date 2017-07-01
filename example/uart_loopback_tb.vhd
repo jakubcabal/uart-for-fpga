@@ -4,7 +4,7 @@
 -- MODULE:  TESTBANCH OF UART LOOPBACK EXAMPLE TOP MODULE
 -- AUTHORS: Jakub Cabal <jakubcabal@gmail.com>
 -- LICENSE: The MIT License (MIT), please read LICENSE file
--- WEBSITE: https://github.com/jakubcabal/uart_for_fpga
+-- WEBSITE: https://github.com/jakubcabal/uart-for-fpga
 --------------------------------------------------------------------------------
 
 library IEEE;
