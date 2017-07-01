@@ -22,9 +22,9 @@ entity UART_TX is
         UART_CLK_EN : in  std_logic; -- oversampling (16x) UART clock enable
         UART_TXD    : out std_logic; -- serial transmit data
         -- USER DATA INPUT INTERFACE
-        DATA_IN     : in  std_logic_vector(7 downto 0); -- input data
-        DATA_SEND   : in  std_logic; -- when DATA_SEND = 1, input data are valid and will be transmit
-        BUSY        : out std_logic  -- when BUSY = 1, transmitter is busy and you must not set DATA_SEND to 1
+        DIN         : in  std_logic_vector(7 downto 0); -- data to be transmitted over UART
+        DIN_VLD     : in  std_logic; -- when DIN_VLD = 1, DIN is valid and will be accepted for transmiting
+        BUSY        : out std_logic  -- when BUSY = 1, transmitter is busy and DIN can not be accepted
     );
 end UART_TX;
 
@@ -93,8 +93,8 @@ begin
         if (rising_edge(CLK)) then
             if (RST = '1') then
                 tx_data <= (others => '0');
-            elsif (DATA_SEND = '1' AND tx_busy = '0') then
-                tx_data <= DATA_IN;
+            elsif (DIN_VLD = '1' AND tx_busy = '0') then
+                tx_data <= DIN;
             end if;
         end if;
     end process;
@@ -179,7 +179,7 @@ begin
     end process;
 
     -- NEXT STATE AND OUTPUTS LOGIC
-    process (tx_pstate, DATA_SEND, tx_clk_en, tx_bit_count)
+    process (tx_pstate, DIN_VLD, tx_clk_en, tx_bit_count)
     begin
 
         case tx_pstate is
@@ -190,7 +190,7 @@ begin
                 tx_bit_count_en <= '0';
                 tx_clk_divider_en <= '0';
 
-                if (DATA_SEND = '1') then
+                if (DIN_VLD = '1') then
                     tx_nstate <= txsync;
                 else
                     tx_nstate <= idle;
@@ -254,7 +254,7 @@ begin
                 tx_bit_count_en <= '0';
                 tx_clk_divider_en <= '1';
 
-                if (DATA_SEND = '1') then
+                if (DIN_VLD = '1') then
                     tx_nstate <= txsync;
                 elsif (tx_clk_en = '1') then
                     tx_nstate <= idle;

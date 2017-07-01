@@ -23,6 +23,7 @@ entity UART is
         USE_DEBOUNCER : boolean := True    -- enable/disable debouncer
     );
     Port (
+        -- CLOCK AND RESET
         CLK         : in  std_logic; -- system clock
         RST         : in  std_logic; -- high active synchronous reset
         -- UART INTERFACE
@@ -123,8 +124,8 @@ begin
         UART_CLK_EN => uart_clk_en,
         UART_TXD    => UART_TXD,
         -- USER DATA INPUT INTERFACE
-        DATA_IN     => DIN,
-        DATA_SEND   => DIN_VLD,
+        DIN         => DIN,
+        DIN_VLD     => DIN_VLD,
         BUSY        => BUSY
     );
 
@@ -143,8 +144,8 @@ begin
         UART_CLK_EN => uart_clk_en,
         UART_RXD    => uart_rxd_debounced,
         -- USER DATA OUTPUT INTERFACE
-        DATA_OUT    => DOUT,
-        DATA_VLD    => DOUT_VLD,
+        DOUT        => DOUT,
+        DOUT_VLD    => DOUT_VLD,
         FRAME_ERROR => FRAME_ERROR
     );
 

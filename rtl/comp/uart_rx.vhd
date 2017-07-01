@@ -22,9 +22,9 @@ entity UART_RX is
         UART_CLK_EN : in  std_logic; -- oversampling (16x) UART clock enable
         UART_RXD    : in  std_logic; -- serial receive data
         -- USER DATA OUTPUT INTERFACE
-        DATA_OUT    : out std_logic_vector(7 downto 0); -- output data
-        DATA_VLD    : out std_logic; -- when DATA_VLD = 1, output data are valid
-        FRAME_ERROR : out std_logic  -- when FRAME_ERROR = 1, stop bit was invalid
+        DOUT        : out std_logic_vector(7 downto 0); -- data received via UART
+        DOUT_VLD    : out std_logic; -- when DOUT_VLD = 1, DOUT is valid (is assert only for one clock cycle)
+        FRAME_ERROR : out std_logic  -- when FRAME_ERROR = 1, stop bit was invalid (is assert only for one clock cycle)
     );
 end UART_RX;
 
@@ -117,7 +117,7 @@ begin
         end if;
     end process;
 
-    DATA_OUT <= rx_data;
+    DOUT <= rx_data;
 
     -- -------------------------------------------------------------------------
     -- UART RECEIVER PARITY GENERATOR AND CHECK
@@ -158,14 +158,14 @@ begin
     begin
         if (rising_edge(CLK)) then
             if (RST = '1') then
-                DATA_VLD <= '0';
+                DOUT_VLD <= '0';
                 FRAME_ERROR <= '0';
             else
                 if (rx_clk_en = '1' AND rx_output_reg_en = '1') then
-                    DATA_VLD <= NOT rx_parity_error AND UART_RXD;
+                    DOUT_VLD <= NOT rx_parity_error AND UART_RXD;
                     FRAME_ERROR <= NOT UART_RXD;
                 else
-                    DATA_VLD <= '0';
+                    DOUT_VLD <= '0';
                     FRAME_ERROR <= '0';
                 end if;
             end if;
@@ -194,9 +194,9 @@ begin
         case rx_pstate is
 
             when idle =>
-                rx_output_reg_en <= '0';
-                rx_receiving_data <= '0';
-                rx_clk_divider_en <= '0';
+                rx_output_reg_en   <= '0';
+                rx_receiving_data  <= '0';
+                rx_clk_divider_en  <= '0';
                 rx_parity_check_en <= '0';
 
                 if (UART_RXD = '0') then
@@ -206,9 +206,9 @@ begin
                 end if;
 
             when startbit =>
-                rx_output_reg_en <= '0';
-                rx_receiving_data <= '0';
-                rx_clk_divider_en <= '1';
+                rx_output_reg_en   <= '0';
+                rx_receiving_data  <= '0';
+                rx_clk_divider_en  <= '1';
                 rx_parity_check_en <= '0';
 
                 if (rx_clk_en = '1') then
@@ -218,9 +218,9 @@ begin
                 end if;
 
             when databits =>
-                rx_output_reg_en <= '0';
-                rx_receiving_data <= '1';
-                rx_clk_divider_en <= '1';
+                rx_output_reg_en   <= '0';
+                rx_receiving_data  <= '1';
+                rx_clk_divider_en  <= '1';
                 rx_parity_check_en <= '0';
 
                 if ((rx_clk_en = '1') AND (rx_bit_count = "111")) then
@@ -234,9 +234,9 @@ begin
                 end if;
 
             when paritybit =>
-                rx_output_reg_en <= '0';
-                rx_receiving_data <= '0';
-                rx_clk_divider_en <= '1';
+                rx_output_reg_en   <= '0';
+                rx_receiving_data  <= '0';
+                rx_clk_divider_en  <= '1';
                 rx_parity_check_en <= '1';
 
                 if (rx_clk_en = '1') then
@@ -246,10 +246,10 @@ begin
                 end if;
 
             when stopbit =>
-                rx_receiving_data <= '0';
-                rx_clk_divider_en <= '1';
+                rx_receiving_data  <= '0';
+                rx_clk_divider_en  <= '1';
                 rx_parity_check_en <= '0';
-                rx_output_reg_en <= '1';
+                rx_output_reg_en   <= '1';
 
                 if (rx_clk_en = '1') then
                     rx_nstate <= idle;
@@ -258,9 +258,9 @@ begin
                 end if;
 
             when others =>
-                rx_output_reg_en <= '0';
-                rx_receiving_data <= '0';
-                rx_clk_divider_en <= '0';
+                rx_output_reg_en   <= '0';
+                rx_receiving_data  <= '0';
+                rx_clk_divider_en  <= '0';
                 rx_parity_check_en <= '0';
                 rx_nstate <= idle;
 
