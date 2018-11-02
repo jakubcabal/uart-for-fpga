@@ -11,6 +11,7 @@
 vlib work
 
 # Compile VHDL files
+vcom -93 ../rtl/comp/debouncer.vhd
 vcom -93 ../rtl/comp/uart_parity.vhd
 vcom -93 ../rtl/comp/uart_tx.vhd
 vcom -93 ../rtl/comp/uart_rx.vhd
@@ -21,6 +22,6 @@ vcom -93 ./uart_tb.vhd
 vsim work.uart_tb
 
 # Setup and start simulation
-add wave *
-#add wave sim:/uart_tb/utt/*
+#add wave *
+add wave sim:/uart_tb/utt/*
 run 200 us

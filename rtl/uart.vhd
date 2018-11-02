@@ -48,7 +48,6 @@ architecture FULL of UART is
 
     signal uart_clk_cnt       : unsigned(CLK_CNT_WIDTH-1 downto 0);
     signal uart_clk_en        : std_logic;
-    signal uart_rxd_shreg     : std_logic_vector(3 downto 0);
     signal uart_rxd_debounced : std_logic;
 
 begin
@@ -75,34 +74,19 @@ begin
     uart_clk_en <= '1' when (uart_clk_cnt = CLK_CNT_MAX) else '0';
 
     -- -------------------------------------------------------------------------
-    --  UART RXD SHIFT REGISTER AND DEBAUNCER
+    --  UART RXD DEBAUNCER
     -- -------------------------------------------------------------------------
 
     use_debouncer_g : if (USE_DEBOUNCER = True) generate
-        uart_rxd_shreg_p : process (CLK)
-        begin
-            if (rising_edge(CLK)) then
-                if (RST = '1') then
-                    uart_rxd_shreg <= (others => '1');
-                else
-                    uart_rxd_shreg <= UART_RXD & uart_rxd_shreg(3 downto 1);
-                end if;
-            end if;
-        end process;
-
-        uart_rxd_debounced_reg_p : process (CLK)
-        begin
-            if (rising_edge(CLK)) then
-                if (RST = '1') then
-                    uart_rxd_debounced <= '1';
-                else
-                    uart_rxd_debounced <= uart_rxd_shreg(0) or
-                                          uart_rxd_shreg(1) or
-                                          uart_rxd_shreg(2) or
-                                          uart_rxd_shreg(3);
-                end if;
-            end if;
-        end process;
+        debouncer_i : entity work.DEBOUNCER
+        generic map(
+            LATENCY => 4
+        )
+        port map (
+            CLK     => CLK,
+            DEB_IN  => UART_RXD,
+            DEB_OUT => uart_rxd_debounced
+        );
     end generate;
 
     not_use_debouncer_g : if (USE_DEBOUNCER = False) generate
