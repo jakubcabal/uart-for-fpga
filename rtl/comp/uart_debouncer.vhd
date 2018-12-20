@@ -1,7 +1,7 @@
 --------------------------------------------------------------------------------
 -- PROJECT: SIMPLE UART FOR FPGA
 --------------------------------------------------------------------------------
--- MODULE:  DEBOUNCER
+-- MODULE:  UART DEBOUNCER
 -- AUTHORS: Jakub Cabal <jakubcabal@gmail.com>
 -- LICENSE: The MIT License (MIT), please read LICENSE file
 -- WEBSITE: https://github.com/jakubcabal/uart-for-fpga
@@ -11,7 +11,7 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 
-entity DEBOUNCER is
+entity UART_DEBOUNCER is
     Generic (
         -- latency of debouncer in clock cycles, minimum value is 2,
         -- value also corresponds to the number of bits compared
@@ -22,9 +22,9 @@ entity DEBOUNCER is
         DEB_IN  : in  std_logic; -- input of signal from outside FPGA
         DEB_OUT : out std_logic  -- output of debounced (filtered) signal
     );
-end DEBOUNCER;
+end UART_DEBOUNCER;
 
-architecture RTL of DEBOUNCER is
+architecture RTL of UART_DEBOUNCER is
 
     constant SHREG_DEPTH : natural := LATENCY-1;
 

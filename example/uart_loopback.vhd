@@ -57,7 +57,7 @@ begin
         -- USER DATA INPUT INTERFACE
         DIN         => data,
         DIN_VLD     => valid,
-        BUSY        => open
+        DIN_RDY     => open
     );
 
 end FULL;

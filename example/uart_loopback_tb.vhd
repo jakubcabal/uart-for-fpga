@@ -17,10 +17,10 @@ end UART_LOOPBACK_TB;
 architecture FULL of UART_LOOPBACK_TB is
 
 	signal CLK           : std_logic := '0';
-	signal RST_N         : std_logic := '0';
+	signal RST           : std_logic := '1';
 	signal tx_uart       : std_logic;
 	signal rx_uart       : std_logic := '1';
-    signal busy          : std_logic;
+    signal din_rdy       : std_logic;
     signal frame_error   : std_logic;
 
   	constant clk_period  : time := 20 ns;
@@ -38,12 +38,12 @@ begin
     )
     port map (
         CLK         => CLK,
-        RST_N       => RST_N,
+        RST         => RST,
         -- UART INTERFACE
         UART_TXD    => tx_uart,
         UART_RXD    => rx_uart,
         -- DEBUG INTERFACE
-        BUSY        => busy,
+        DIN_RDY     => din_rdy,
         FRAME_ERR   => frame_error
     );
 
@@ -58,9 +58,9 @@ begin
 	test_rx_uart : process
 	begin
 		rx_uart <= '1';
-		RST_N <= '0';
+		RST <= '1';
 		wait for 100 ns;
-    	RST_N <= '1';
+    	RST <= '0';
 
 		wait for uart_period;
 

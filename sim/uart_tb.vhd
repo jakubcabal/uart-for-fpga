@@ -22,7 +22,7 @@ architecture FULL of UART_TB is
 	signal rx_uart       : std_logic;
 	signal din           : std_logic_vector(7 downto 0);
 	signal din_vld       : std_logic;
-	signal busy          : std_logic;
+	signal din_rdy       : std_logic;
 	signal dout          : std_logic_vector(7 downto 0);
 	signal dout_vld      : std_logic;
 	signal frame_error   : std_logic;
@@ -49,7 +49,7 @@ begin
         -- USER DATA INPUT INTERFACE
 		DIN         => din,
         DIN_VLD     => din_vld,
-        BUSY        => busy,
+        DIN_RDY     => din_rdy,
         -- USER DATA OUTPUT INTERFACE
         DOUT        => dout,
         DOUT_VLD    => dout_vld,

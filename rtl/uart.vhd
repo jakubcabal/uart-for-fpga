@@ -30,12 +30,12 @@ entity UART is
         UART_TXD    : out std_logic; -- serial transmit data
         UART_RXD    : in  std_logic; -- serial receive data
         -- USER DATA INPUT INTERFACE
-        DIN         : in  std_logic_vector(7 downto 0); -- data to be transmitted over UART
-        DIN_VLD     : in  std_logic; -- when DIN_VLD = 1, DIN is valid and will be accepted for transmiting
-        BUSY        : out std_logic; -- when BUSY = 1, transmitter is busy and DIN can not be accepted
+        DIN         : in  std_logic_vector(7 downto 0); -- input data to be transmitted over UART
+        DIN_VLD     : in  std_logic; -- when DIN_VLD = 1, input data (DIN) are valid
+        DIN_RDY     : out std_logic; -- when DIN_RDY = 1, transmitter is ready and valid input data will be accepted for transmiting
         -- USER DATA OUTPUT INTERFACE
-        DOUT        : out std_logic_vector(7 downto 0); -- data received via UART
-        DOUT_VLD    : out std_logic; -- when DOUT_VLD = 1, DOUT is valid (is assert only for one clock cycle)
+        DOUT        : out std_logic_vector(7 downto 0); -- output data received via UART
+        DOUT_VLD    : out std_logic; -- when DOUT_VLD = 1, output data (DOUT) are valid (is assert only for one clock cycle)
         FRAME_ERROR : out std_logic  -- when FRAME_ERROR = 1, stop bit was invalid (is assert only for one clock cycle)
     );
 end UART;
@@ -78,7 +78,7 @@ begin
     -- -------------------------------------------------------------------------
 
     use_debouncer_g : if (USE_DEBOUNCER = True) generate
-        debouncer_i : entity work.DEBOUNCER
+        debouncer_i : entity work.UART_DEBOUNCER
         generic map(
             LATENCY => 4
         )
@@ -110,7 +110,7 @@ begin
         -- USER DATA INPUT INTERFACE
         DIN         => DIN,
         DIN_VLD     => DIN_VLD,
-        BUSY        => BUSY
+        DIN_RDY     => DIN_RDY
     );
 
     -- -------------------------------------------------------------------------

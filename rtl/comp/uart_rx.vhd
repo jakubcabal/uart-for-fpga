@@ -22,8 +22,8 @@ entity UART_RX is
         UART_CLK_EN : in  std_logic; -- oversampling (16x) UART clock enable
         UART_RXD    : in  std_logic; -- serial receive data
         -- USER DATA OUTPUT INTERFACE
-        DOUT        : out std_logic_vector(7 downto 0); -- data received via UART
-        DOUT_VLD    : out std_logic; -- when DOUT_VLD = 1, DOUT is valid (is assert only for one clock cycle)
+        DOUT        : out std_logic_vector(7 downto 0); -- output data received via UART
+        DOUT_VLD    : out std_logic; -- when DOUT_VLD = 1, output data (DOUT) are valid (is assert only for one clock cycle)
         FRAME_ERROR : out std_logic  -- when FRAME_ERROR = 1, stop bit was invalid (is assert only for one clock cycle)
     );
 end UART_RX;
@@ -55,7 +55,7 @@ begin
     begin
         if (rising_edge(CLK)) then
             if (rx_clk_divider_en = '1') then
-                if (uart_clk_en = '1') then
+                if (UART_CLK_EN = '1') then
                     if (rx_ticks = "1111") then
                         rx_ticks <= (others => '0');
                     else
@@ -75,7 +75,7 @@ begin
         if (rising_edge(CLK)) then
             if (RST = '1') then
                 rx_clk_en <= '0';
-            elsif (uart_clk_en = '1' AND rx_ticks = "0111") then
+            elsif (UART_CLK_EN = '1' AND rx_ticks = "0111") then
                 rx_clk_en <= '1';
             else
                 rx_clk_en <= '0';
@@ -109,9 +109,7 @@ begin
     uart_rx_data_shift_reg_p : process (CLK)
     begin
         if (rising_edge(CLK)) then
-            if (RST = '1') then
-                rx_data <= (others => '0');
-            elsif (rx_clk_en = '1' AND rx_receiving_data = '1') then
+            if (rx_clk_en = '1' AND rx_receiving_data = '1') then
                 rx_data <= UART_RXD & rx_data(7 downto 1);
             end if;
         end if;
@@ -137,9 +135,7 @@ begin
         uart_rx_parity_check_reg_p : process (CLK)
         begin
             if (rising_edge(CLK)) then
-                if (RST = '1') then
-                    rx_parity_error <= '0';
-                elsif (rx_parity_check_en = '1') then
+                if (rx_clk_en = '1') then
                     rx_parity_error <= rx_parity_bit XOR UART_RXD;
                 end if;
             end if;
@@ -194,10 +190,9 @@ begin
         case rx_pstate is
 
             when idle =>
-                rx_output_reg_en   <= '0';
-                rx_receiving_data  <= '0';
-                rx_clk_divider_en  <= '0';
-                rx_parity_check_en <= '0';
+                rx_output_reg_en  <= '0';
+                rx_receiving_data <= '0';
+                rx_clk_divider_en <= '0';
 
                 if (UART_RXD = '0') then
                     rx_nstate <= startbit;
@@ -206,10 +201,9 @@ begin
                 end if;
 
             when startbit =>
-                rx_output_reg_en   <= '0';
-                rx_receiving_data  <= '0';
-                rx_clk_divider_en  <= '1';
-                rx_parity_check_en <= '0';
+                rx_output_reg_en  <= '0';
+                rx_receiving_data <= '0';
+                rx_clk_divider_en <= '1';
 
                 if (rx_clk_en = '1') then
                     rx_nstate <= databits;
@@ -218,10 +212,9 @@ begin
                 end if;
 
             when databits =>
-                rx_output_reg_en   <= '0';
-                rx_receiving_data  <= '1';
-                rx_clk_divider_en  <= '1';
-                rx_parity_check_en <= '0';
+                rx_output_reg_en  <= '0';
+                rx_receiving_data <= '1';
+                rx_clk_divider_en <= '1';
 
                 if ((rx_clk_en = '1') AND (rx_bit_count = "111")) then
                     if (PARITY_BIT = "none") then
@@ -234,10 +227,9 @@ begin
                 end if;
 
             when paritybit =>
-                rx_output_reg_en   <= '0';
-                rx_receiving_data  <= '0';
-                rx_clk_divider_en  <= '1';
-                rx_parity_check_en <= '1';
+                rx_output_reg_en  <= '0';
+                rx_receiving_data <= '0';
+                rx_clk_divider_en <= '1';
 
                 if (rx_clk_en = '1') then
                     rx_nstate <= stopbit;
@@ -246,10 +238,9 @@ begin
                 end if;
 
             when stopbit =>
-                rx_receiving_data  <= '0';
-                rx_clk_divider_en  <= '1';
-                rx_parity_check_en <= '0';
-                rx_output_reg_en   <= '1';
+                rx_output_reg_en  <= '1';
+                rx_receiving_data <= '0';
+                rx_clk_divider_en <= '1';
 
                 if (rx_clk_en = '1') then
                     rx_nstate <= idle;
@@ -258,11 +249,10 @@ begin
                 end if;
 
             when others =>
-                rx_output_reg_en   <= '0';
-                rx_receiving_data  <= '0';
-                rx_clk_divider_en  <= '0';
-                rx_parity_check_en <= '0';
-                rx_nstate <= idle;
+                rx_output_reg_en  <= '0';
+                rx_receiving_data <= '0';
+                rx_clk_divider_en <= '0';
+                rx_nstate         <= idle;
 
         end case;
     end process;

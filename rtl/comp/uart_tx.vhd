@@ -22,9 +22,9 @@ entity UART_TX is
         UART_CLK_EN : in  std_logic; -- oversampling (16x) UART clock enable
         UART_TXD    : out std_logic; -- serial transmit data
         -- USER DATA INPUT INTERFACE
-        DIN         : in  std_logic_vector(7 downto 0); -- data to be transmitted over UART
-        DIN_VLD     : in  std_logic; -- when DIN_VLD = 1, DIN is valid and will be accepted for transmiting
-        BUSY        : out std_logic  -- when BUSY = 1, transmitter is busy and DIN can not be accepted
+        DIN         : in  std_logic_vector(7 downto 0); -- input data to be transmitted over UART
+        DIN_VLD     : in  std_logic; -- when DIN_VLD = 1, input data (DIN) are valid
+        DIN_RDY     : out std_logic  -- when DIN_RDY = 1, transmitter is ready and valid input data will be accepted for transmiting
     );
 end UART_TX;
 
@@ -36,7 +36,7 @@ architecture FULL of UART_TX is
     signal tx_data           : std_logic_vector(7 downto 0);
     signal tx_bit_count      : unsigned(2 downto 0);
     signal tx_bit_count_en   : std_logic;
-    signal tx_busy           : std_logic;
+    signal tx_ready          : std_logic;
     signal tx_parity_bit     : std_logic;
     signal tx_data_out_sel   : std_logic_vector(1 downto 0);
 
@@ -46,7 +46,7 @@ architecture FULL of UART_TX is
 
 begin
 
-    BUSY <= tx_busy;
+    DIN_RDY <= tx_ready;
 
     -- -------------------------------------------------------------------------
     -- UART TRANSMITTER CLOCK DIVIDER
@@ -91,9 +91,7 @@ begin
     uart_tx_input_data_reg_p : process (CLK)
     begin
         if (rising_edge(CLK)) then
-            if (RST = '1') then
-                tx_data <= (others => '0');
-            elsif (DIN_VLD = '1' AND tx_busy = '0') then
+            if (DIN_VLD = '1' AND tx_ready = '1') then
                 tx_data <= DIN;
             end if;
         end if;
@@ -185,7 +183,7 @@ begin
         case tx_pstate is
 
             when idle =>
-                tx_busy <= '0';
+                tx_ready <= '1';
                 tx_data_out_sel <= "00";
                 tx_bit_count_en <= '0';
                 tx_clk_divider_en <= '0';
@@ -197,7 +195,7 @@ begin
                 end if;
 
             when txsync =>
-                tx_busy <= '1';
+                tx_ready <= '0';
                 tx_data_out_sel <= "00";
                 tx_bit_count_en <= '0';
                 tx_clk_divider_en <= '1';
@@ -209,7 +207,7 @@ begin
                 end if;
 
             when startbit =>
-                tx_busy <= '1';
+                tx_ready <= '0';
                 tx_data_out_sel <= "01";
                 tx_bit_count_en <= '0';
                 tx_clk_divider_en <= '1';
@@ -221,7 +219,7 @@ begin
                 end if;
 
             when databits =>
-                tx_busy <= '1';
+                tx_ready <= '0';
                 tx_data_out_sel <= "10";
                 tx_bit_count_en <= '1';
                 tx_clk_divider_en <= '1';
@@ -237,7 +235,7 @@ begin
                 end if;
 
             when paritybit =>
-                tx_busy <= '1';
+                tx_ready <= '0';
                 tx_data_out_sel <= "11";
                 tx_bit_count_en <= '0';
                 tx_clk_divider_en <= '1';
@@ -249,7 +247,7 @@ begin
                 end if;
 
             when stopbit =>
-                tx_busy <= '0';
+                tx_ready <= '1';
                 tx_data_out_sel <= "00";
                 tx_bit_count_en <= '0';
                 tx_clk_divider_en <= '1';
@@ -263,7 +261,7 @@ begin
                 end if;
 
             when others =>
-                tx_busy <= '1';
+                tx_ready <= '0';
                 tx_data_out_sel <= "00";
                 tx_bit_count_en <= '0';
                 tx_clk_divider_en <= '0';

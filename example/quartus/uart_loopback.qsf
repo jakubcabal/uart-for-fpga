@@ -1,0 +1,29 @@
+#-------------------------------------------------------------------------------
+# PROJECT: SIMPLE UART FOR FPGA
+#-------------------------------------------------------------------------------
+# NAME:    QUARTUS SETTINGS FILE FOR EP4CE6 STARTER BOARD
+# AUTHORS: Jakub Cabal <jakubcabal@gmail.com>
+# LICENSE: The MIT License (MIT), please read LICENSE file
+# WEBSITE: https://github.com/jakubcabal/uart-for-fpga
+#-------------------------------------------------------------------------------
+
+set_global_assignment -name FAMILY "Cyclone IV E"
+set_global_assignment -name DEVICE EP4CE6E22C8
+set_global_assignment -name TOP_LEVEL_ENTITY UART_LOOPBACK
+
+# PROJECT VHDL FILES
+set_global_assignment -name VHDL_FILE ../uart_loopback.vhd
+set_global_assignment -name VHDL_FILE ../../rtl/uart.vhd
+set_global_assignment -name VHDL_FILE ../../rtl/comp/uart_tx.vhd
+set_global_assignment -name VHDL_FILE ../../rtl/comp/uart_rx.vhd
+set_global_assignment -name VHDL_FILE ../../rtl/comp/uart_parity.vhd
+set_global_assignment -name VHDL_FILE ../../rtl/comp/uart_debouncer.vhd
+
+# TIMING CONSTRAINTS
+set_global_assignment -name SDC_FILE ../timing_constraints.sdc
+
+# FPGA PINS ASSIGNMENT FOR EP4CE6 STARTER BOARD
+set_location_assignment PIN_91  -to CLK
+set_location_assignment PIN_25  -to RST
+set_location_assignment PIN_85  -to UART_TXD
+set_location_assignment PIN_86  -to UART_RXD
