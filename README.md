@@ -6,7 +6,7 @@ Simple UART for FPGA is UART (Universal Asynchronous Receiver & Transmitter) con
 
 The UART controller was simulated and tested in hardware.
 
-# Inputs and outputs ports:
+## Inputs and outputs ports:
 
 ```
 -- CLOCK AND RESET
@@ -25,7 +25,7 @@ DOUT_VLD    : out std_logic; -- when DOUT_VLD = 1, output data (DOUT) are valid 
 FRAME_ERROR : out std_logic  -- when FRAME_ERROR = 1, stop bit was invalid (is assert only for one clock cycle)
 ```
 
-# Generics:
+## Generics:
 
 ```
 CLK_FREQ      : integer := 50e6;   -- system clock frequency in Hz
@@ -34,7 +34,7 @@ PARITY_BIT    : string  := "none"; -- type of parity: "none", "even", "odd", "ma
 USE_DEBOUNCER : boolean := True    -- enable/disable debouncer
 ```
 
-# Table of resource usage summary:
+## Table of resource usage summary:
 
 Use debouncer | Parity type | LE (LUT+FF) | LUT | FF | BRAM | Fmax
 :---:|:---:|:---:|:---:|:---:|:---:|:---:
@@ -47,7 +47,7 @@ False | mark/space | 74 | 61 | 52 | 0 | 186.2 MHz
 
 *Implementation was performed using Quartus Prime Lite Edition 17.0.0 for FPGA Altera Cyclone IV E EP4CE6E22C8. Setting of some generics: BAUD_RATE = 115200, CLK_FREQ = 50e6.*
 
-# Simulation:
+## Simulation:
 
 A basic simulation is prepared in the repository. You can use the prepared TCL script to run simulation in ModelSim.
 
@@ -55,11 +55,11 @@ A basic simulation is prepared in the repository. You can use the prepared TCL s
 vsim -do sim/sim.tcl
 ```
 
-# UART LOOPBACK EXAMPLE
+## UART loopback example:
 
 The UART loopback example design is for testing data transfer between FPGA and PC.
 I use it on my cheap FPGA board ([EP4CE6 Starter Board](http://www.ebay.com/itm/111975895262) with Altera FPGA Cyclone IV EP4CE6E22C8) together with external USB to UART Bridge.
 
-# License:
+## License:
 
 This UART controller is available under the MIT license (MIT). Please read [LICENSE file](LICENSE).
