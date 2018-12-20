@@ -55,6 +55,11 @@ A basic simulation is prepared in the repository. You can use the prepared TCL s
 vsim -do sim/sim.tcl
 ```
 
+# UART LOOPBACK EXAMPLE
+
+The UART loopback example design is for testing data transfer between FPGA and PC.
+I use it on my cheap FPGA board ([EP4CE6 Starter Board](http://www.ebay.com/itm/111975895262) with Altera FPGA Cyclone IV EP4CE6E22C8) together with external USB to UART Bridge.
+
 # License:
 
 This UART controller is available under the MIT license (MIT). Please read [LICENSE file](LICENSE).
