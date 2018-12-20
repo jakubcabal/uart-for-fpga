@@ -12,8 +12,21 @@ use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 use IEEE.MATH_REAL.ALL;
 
+-- SIMPLE UART FOR FPGA
+-- ====================
 -- UART FOR FPGA REQUIRES: 1 START BIT, 8 DATA BITS, 1 STOP BIT!!!
 -- OTHER PARAMETERS CAN BE SET USING GENERICS.
+
+-- DESCRIPTION OF RELEASED VERSIONS:
+-- =================================
+-- Version 1.0 - released on 27 May 2016
+    -- Initial release.
+-- Version 1.1 - released on 20 December 2018
+    -- Added better debouncer.
+    -- Added simulation script and Quartus project file.
+    -- Removed unnecessary resets.
+    -- Signal BUSY replaced by DIN_RDY.
+    -- Many other optimizations and changes.
 
 entity UART is
     Generic (
