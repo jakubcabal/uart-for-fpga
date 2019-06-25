@@ -27,6 +27,8 @@ use IEEE.MATH_REAL.ALL;
     -- Removed unnecessary resets.
     -- Signal BUSY replaced by DIN_RDY.
     -- Many other optimizations and changes.
+-- Version 1.2 -
+    -- added double FF for safe CDC
 
 entity UART is
     Generic (
@@ -51,7 +53,7 @@ entity UART is
         DOUT_VLD    : out std_logic; -- when DOUT_VLD = 1, output data (DOUT) are valid (is assert only for one clock cycle)
         FRAME_ERROR : out std_logic  -- when FRAME_ERROR = 1, stop bit was invalid (is assert only for one clock cycle)
     );
-end UART;
+end entity;
 
 architecture FULL of UART is
 
@@ -61,6 +63,8 @@ architecture FULL of UART is
 
     signal uart_clk_cnt       : unsigned(CLK_CNT_WIDTH-1 downto 0);
     signal uart_clk_en        : std_logic;
+    signal uart_rxd_meta      : std_logic;
+    signal uart_rxd_synced    : std_logic;
     signal uart_rxd_debounced : std_logic;
 
 begin
@@ -87,6 +91,18 @@ begin
     uart_clk_en <= '1' when (uart_clk_cnt = CLK_CNT_MAX) else '0';
 
     -- -------------------------------------------------------------------------
+    --  UART RXD CROSS DOMAIN CROSSING
+    -- -------------------------------------------------------------------------
+    
+    uart_rxd_cdc_reg_p : process (CLK)
+    begin
+        if (rising_edge(CLK)) then
+            uart_rxd_meta   <= UART_RXD;
+            uart_rxd_synced <= uart_rxd_meta;
+        end if;
+    end process;
+
+    -- -------------------------------------------------------------------------
     --  UART RXD DEBAUNCER
     -- -------------------------------------------------------------------------
 
@@ -97,34 +113,14 @@ begin
         )
         port map (
             CLK     => CLK,
-            DEB_IN  => UART_RXD,
+            DEB_IN  => uart_rxd_synced,
             DEB_OUT => uart_rxd_debounced
         );
     end generate;
 
     not_use_debouncer_g : if (USE_DEBOUNCER = False) generate
-        uart_rxd_debounced <= UART_RXD;
+        uart_rxd_debounced <= uart_rxd_synced;
     end generate;
-
-    -- -------------------------------------------------------------------------
-    --  UART TRANSMITTER
-    -- -------------------------------------------------------------------------
-
-    uart_tx_i: entity work.UART_TX
-    generic map (
-        PARITY_BIT  => PARITY_BIT
-    )
-    port map (
-        CLK         => CLK,
-        RST         => RST,
-        -- UART INTERFACE
-        UART_CLK_EN => uart_clk_en,
-        UART_TXD    => UART_TXD,
-        -- USER DATA INPUT INTERFACE
-        DIN         => DIN,
-        DIN_VLD     => DIN_VLD,
-        DIN_RDY     => DIN_RDY
-    );
 
     -- -------------------------------------------------------------------------
     --  UART RECEIVER
@@ -146,4 +142,24 @@ begin
         FRAME_ERROR => FRAME_ERROR
     );
 
-end FULL;
+    -- -------------------------------------------------------------------------
+    --  UART TRANSMITTER
+    -- -------------------------------------------------------------------------
+
+    uart_tx_i: entity work.UART_TX
+    generic map (
+        PARITY_BIT  => PARITY_BIT
+    )
+    port map (
+        CLK         => CLK,
+        RST         => RST,
+        -- UART INTERFACE
+        UART_CLK_EN => uart_clk_en,
+        UART_TXD    => UART_TXD,
+        -- USER DATA INPUT INTERFACE
+        DIN         => DIN,
+        DIN_VLD     => DIN_VLD,
+        DIN_RDY     => DIN_RDY
+    );
+
+end architecture;
