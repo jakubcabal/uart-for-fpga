@@ -55,40 +55,40 @@ entity UART is
     );
 end entity;
 
-architecture FULL of UART is
+architecture RTL of UART is
 
-    constant DIVIDER_VALUE    : integer  := CLK_FREQ/(16*BAUD_RATE);
-    constant CLK_CNT_WIDTH    : integer  := integer(ceil(log2(real(DIVIDER_VALUE))));
-    constant CLK_CNT_MAX      : unsigned := to_unsigned(DIVIDER_VALUE-1, CLK_CNT_WIDTH);
+    constant DIVIDER_VALUE : integer  := CLK_FREQ/(16*BAUD_RATE);
+    constant CLK_CNT_WIDTH : integer  := integer(ceil(log2(real(DIVIDER_VALUE))));
+    constant CLK_CNT_MAX   : unsigned := to_unsigned(DIVIDER_VALUE-1, CLK_CNT_WIDTH);
 
-    signal uart_clk_cnt       : unsigned(CLK_CNT_WIDTH-1 downto 0);
-    signal uart_clk_en        : std_logic;
-    signal uart_rxd_meta      : std_logic;
-    signal uart_rxd_synced    : std_logic;
-    signal uart_rxd_debounced : std_logic;
+    signal oversampling_clk_cnt : unsigned(CLK_CNT_WIDTH-1 downto 0);
+    signal oversampling_clk_en  : std_logic;
+    signal uart_rxd_meta        : std_logic;
+    signal uart_rxd_synced      : std_logic;
+    signal uart_rxd_debounced   : std_logic;
 
 begin
 
     -- -------------------------------------------------------------------------
-    --  UART CLOCK COUNTER AND CLOCK ENABLE FLAG
+    --  UART OVERSAMPLING (16X) CLOCK COUNTER AND CLOCK ENABLE FLAG
     -- -------------------------------------------------------------------------
 
-    uart_clk_cnt_p : process (CLK)
+    oversampling_clk_cnt_p : process (CLK)
     begin
         if (rising_edge(CLK)) then
             if (RST = '1') then
-                uart_clk_cnt <= (others => '0');
+                oversampling_clk_cnt <= (others => '0');
             else
-                if (uart_clk_en = '1') then
-                    uart_clk_cnt <= (others => '0');
+                if (oversampling_clk_en = '1') then
+                    oversampling_clk_cnt <= (others => '0');
                 else
-                    uart_clk_cnt <= uart_clk_cnt + 1;
+                    oversampling_clk_cnt <= oversampling_clk_cnt + 1;
                 end if;
             end if;
         end if;
     end process;
 
-    uart_clk_en <= '1' when (uart_clk_cnt = CLK_CNT_MAX) else '0';
+    oversampling_clk_en <= '1' when (oversampling_clk_cnt = CLK_CNT_MAX) else '0';
 
     -- -------------------------------------------------------------------------
     --  UART RXD CROSS DOMAIN CROSSING
@@ -131,15 +131,16 @@ begin
         PARITY_BIT  => PARITY_BIT
     )
     port map (
-        CLK         => CLK,
-        RST         => RST,
+        CLK          => CLK,
+        RST          => RST,
         -- UART INTERFACE
-        UART_CLK_EN => uart_clk_en,
-        UART_RXD    => uart_rxd_debounced,
+        UART_CLK_EN  => oversampling_clk_en,
+        UART_RXD     => uart_rxd_debounced,
         -- USER DATA OUTPUT INTERFACE
-        DOUT        => DOUT,
-        DOUT_VLD    => DOUT_VLD,
-        FRAME_ERROR => FRAME_ERROR
+        DOUT         => DOUT,
+        DOUT_VLD     => DOUT_VLD,
+        FRAME_ERROR  => FRAME_ERROR,
+        PARITY_ERROR => open
     );
 
     -- -------------------------------------------------------------------------
@@ -154,7 +155,7 @@ begin
         CLK         => CLK,
         RST         => RST,
         -- UART INTERFACE
-        UART_CLK_EN => uart_clk_en,
+        UART_CLK_EN => oversampling_clk_en,
         UART_TXD    => UART_TXD,
         -- USER DATA INPUT INTERFACE
         DIN         => DIN,
