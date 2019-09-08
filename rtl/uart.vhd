@@ -28,7 +28,8 @@ use IEEE.MATH_REAL.ALL;
     -- Signal BUSY replaced by DIN_RDY.
     -- Many other optimizations and changes.
 -- Version 1.2 -
-    -- added double FF for safe CDC
+    -- Added double FF for safe CDC.
+    -- Fixed fake received transaction after FPGA boot without reset.
 
 entity UART is
     Generic (
@@ -63,8 +64,9 @@ architecture RTL of UART is
 
     signal oversampling_clk_cnt : unsigned(CLK_CNT_WIDTH-1 downto 0);
     signal oversampling_clk_en  : std_logic;
-    signal uart_rxd_meta        : std_logic;
-    signal uart_rxd_synced      : std_logic;
+    signal uart_rxd_meta_n      : std_logic;
+    signal uart_rxd_synced_n    : std_logic;
+    signal uart_rxd_debounced_n : std_logic;
     signal uart_rxd_debounced   : std_logic;
 
 begin
@@ -97,8 +99,8 @@ begin
     uart_rxd_cdc_reg_p : process (CLK)
     begin
         if (rising_edge(CLK)) then
-            uart_rxd_meta   <= UART_RXD;
-            uart_rxd_synced <= uart_rxd_meta;
+            uart_rxd_meta_n   <= not UART_RXD;
+            uart_rxd_synced_n <= uart_rxd_meta_n;
         end if;
     end process;
 
@@ -113,14 +115,16 @@ begin
         )
         port map (
             CLK     => CLK,
-            DEB_IN  => uart_rxd_synced,
-            DEB_OUT => uart_rxd_debounced
+            DEB_IN  => uart_rxd_synced_n,
+            DEB_OUT => uart_rxd_debounced_n
         );
     end generate;
 
     not_use_debouncer_g : if (USE_DEBOUNCER = False) generate
-        uart_rxd_debounced <= uart_rxd_synced;
+        uart_rxd_debounced_n <= uart_rxd_synced_n;
     end generate;
+
+    uart_rxd_debounced <= not uart_rxd_debounced_n;
 
     -- -------------------------------------------------------------------------
     --  UART RECEIVER
