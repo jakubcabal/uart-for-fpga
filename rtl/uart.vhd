@@ -1,7 +1,6 @@
 --------------------------------------------------------------------------------
 -- PROJECT: SIMPLE UART FOR FPGA
 --------------------------------------------------------------------------------
--- MODULE:  UART TOP MODULE
 -- AUTHORS: Jakub Cabal <jakubcabal@gmail.com>
 -- LICENSE: The MIT License (MIT), please read LICENSE file
 -- WEBSITE: https://github.com/jakubcabal/uart-for-fpga
@@ -61,10 +60,9 @@ end entity;
 architecture RTL of UART is
 
     constant OS_CLK_DIV_VAL   : integer := integer(real(CLK_FREQ)/real(16*BAUD_RATE));
-    constant OS_CLK_DIV_WIDTH : integer := integer(ceil(log2(real(OS_CLK_DIV_VAL))));
+    constant UART_CLK_DIV_VAL : integer := integer(real(CLK_FREQ)/real(OS_CLK_DIV_VAL*BAUD_RATE));
 
-    signal os_clk_div_cnt       : unsigned(OS_CLK_DIV_WIDTH-1 downto 0);
-    signal os_clk_div_cnt_max   : std_logic;
+    signal os_clk_en            : std_logic;
     signal uart_rxd_meta_n      : std_logic;
     signal uart_rxd_synced_n    : std_logic;
     signal uart_rxd_debounced_n : std_logic;
@@ -73,25 +71,21 @@ architecture RTL of UART is
 begin
 
     -- -------------------------------------------------------------------------
-    --  UART OVERSAMPLING (16X) CLOCK DIVIDER AND CLOCK ENABLE FLAG
+    --  UART OVERSAMPLING (~16X) CLOCK DIVIDER AND CLOCK ENABLE FLAG
     -- -------------------------------------------------------------------------
 
-    os_clk_div_cnt_p : process (CLK)
-    begin
-        if (rising_edge(CLK)) then
-            if (RST = '1') then
-                os_clk_div_cnt <= (others => '0');
-            else
-                if (os_clk_div_cnt_max = '1') then
-                    os_clk_div_cnt <= (others => '0');
-                else
-                    os_clk_div_cnt <= os_clk_div_cnt + 1;
-                end if;
-            end if;
-        end if;
-    end process;
-
-    os_clk_div_cnt_max <= '1' when (os_clk_div_cnt = OS_CLK_DIV_VAL-1) else '0';
+    os_clk_divider_i : entity work.UART_CLK_DIV
+    generic map(
+        DIV_MAX_VAL  => OS_CLK_DIV_VAL,
+        DIV_MARK_POS => OS_CLK_DIV_VAL-1
+    )
+    port map (
+        CLK      => CLK,
+        RST      => RST,
+        CLEAR    => RST,
+        ENABLE   => '1',
+        DIV_MARK => os_clk_en
+    );
 
     -- -------------------------------------------------------------------------
     --  UART RXD CROSS DOMAIN CROSSING
@@ -133,15 +127,14 @@ begin
 
     uart_rx_i: entity work.UART_RX
     generic map (
-        CLK_FREQ   => CLK_FREQ,
-        BAUD_RATE  => BAUD_RATE,
-        PARITY_BIT => PARITY_BIT
+        CLK_DIV_VAL => UART_CLK_DIV_VAL,
+        PARITY_BIT  => PARITY_BIT
     )
     port map (
         CLK          => CLK,
         RST          => RST,
         -- UART INTERFACE
-        UART_CLK_EN  => os_clk_div_cnt_max,
+        UART_CLK_EN  => os_clk_en,
         UART_RXD     => uart_rxd_debounced,
         -- USER DATA OUTPUT INTERFACE
         DOUT         => DOUT,
@@ -156,15 +149,14 @@ begin
 
     uart_tx_i: entity work.UART_TX
     generic map (
-        CLK_FREQ   => CLK_FREQ,
-        BAUD_RATE  => BAUD_RATE,
-        PARITY_BIT => PARITY_BIT
+        CLK_DIV_VAL => UART_CLK_DIV_VAL,
+        PARITY_BIT  => PARITY_BIT
     )
     port map (
         CLK         => CLK,
         RST         => RST,
         -- UART INTERFACE
-        UART_CLK_EN => os_clk_div_cnt_max,
+        UART_CLK_EN => os_clk_en,
         UART_TXD    => UART_TXD,
         -- USER DATA INPUT INTERFACE
         DIN         => DIN,

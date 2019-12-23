@@ -1,7 +1,6 @@
 --------------------------------------------------------------------------------
 -- PROJECT: SIMPLE UART FOR FPGA
 --------------------------------------------------------------------------------
--- MODULE:  UART RECEIVER
 -- AUTHORS: Jakub Cabal <jakubcabal@gmail.com>
 -- LICENSE: The MIT License (MIT), please read LICENSE file
 -- WEBSITE: https://github.com/jakubcabal/uart-for-fpga
@@ -10,13 +9,11 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
-use IEEE.MATH_REAL.ALL;
 
 entity UART_RX is
     Generic (
-        CLK_FREQ   : integer := 50e6;   -- system clock frequency in Hz
-        BAUD_RATE  : integer := 115200; -- baud rate value
-        PARITY_BIT : string := "none" -- type of parity: "none", "even", "odd", "mark", "space"
+        CLK_DIV_VAL : integer := 16;
+        PARITY_BIT  : string  := "none" -- type of parity: "none", "even", "odd", "mark", "space"
     );
     Port (
         CLK          : in  std_logic; -- system clock
@@ -34,19 +31,14 @@ end entity;
 
 architecture RTL of UART_RX is
 
-    constant OS_CLK_DIV_VAL     : integer := integer(real(CLK_FREQ)/real(16*BAUD_RATE));
-    constant UART_CLK_DIV_VAL   : integer := integer(real(CLK_FREQ)/real(OS_CLK_DIV_VAL*BAUD_RATE));
-    constant UART_CLK_DIV_WIDTH : integer := integer(ceil(log2(real(UART_CLK_DIV_VAL))));
-
     signal rx_clk_en          : std_logic;
-    signal rx_ticks           : unsigned(UART_CLK_DIV_WIDTH-1 downto 0);
     signal rx_data            : std_logic_vector(7 downto 0);
     signal rx_bit_count       : unsigned(2 downto 0);
     signal rx_parity_bit      : std_logic;
     signal rx_parity_error    : std_logic;
     signal rx_parity_check_en : std_logic;
     signal rx_done            : std_logic;
-    signal fsm_receiving      : std_logic;
+    signal fsm_idle           : std_logic;
     signal fsm_databits       : std_logic;
     signal fsm_stopbit        : std_logic;
 
@@ -60,37 +52,18 @@ begin
     -- UART RECEIVER CLOCK DIVIDER AND CLOCK ENABLE FLAG
     -- -------------------------------------------------------------------------
 
-    uart_rx_clk_divider_p : process (CLK)
-    begin
-        if (rising_edge(CLK)) then
-            if (fsm_receiving = '1') then
-                if (UART_CLK_EN = '1') then
-                    if (rx_ticks = UART_CLK_DIV_VAL-1) then
-                        rx_ticks <= (others => '0');
-                    else
-                        rx_ticks <= rx_ticks + 1;
-                    end if;
-                else
-                    rx_ticks <= rx_ticks;
-                end if;
-            else
-                rx_ticks <= (others => '0');
-            end if;
-        end if;
-    end process;
-
-    uart_rx_clk_en_p : process (CLK)
-    begin
-        if (rising_edge(CLK)) then
-            if (RST = '1') then
-                rx_clk_en <= '0';
-            elsif (UART_CLK_EN = '1' AND rx_ticks = 3) then
-                rx_clk_en <= '1';
-            else
-                rx_clk_en <= '0';
-            end if;
-        end if;
-    end process;
+    rx_clk_divider_i : entity work.UART_CLK_DIV
+    generic map(
+        DIV_MAX_VAL  => CLK_DIV_VAL,
+        DIV_MARK_POS => 3
+    )
+    port map (
+        CLK      => CLK,
+        RST      => RST,
+        CLEAR    => fsm_idle,
+        ENABLE   => UART_CLK_EN,
+        DIV_MARK => rx_clk_en
+    );
 
     -- -------------------------------------------------------------------------
     -- UART RECEIVER BIT COUNTER
@@ -198,9 +171,9 @@ begin
         case fsm_pstate is
 
             when idle =>
-                fsm_stopbit   <= '0';
-                fsm_databits  <= '0';
-                fsm_receiving <= '0';
+                fsm_stopbit  <= '0';
+                fsm_databits <= '0';
+                fsm_idle     <= '1';
 
                 if (UART_RXD = '0') then
                     fsm_nstate <= startbit;
@@ -209,9 +182,9 @@ begin
                 end if;
 
             when startbit =>
-                fsm_stopbit   <= '0';
-                fsm_databits  <= '0';
-                fsm_receiving <= '1';
+                fsm_stopbit  <= '0';
+                fsm_databits <= '0';
+                fsm_idle     <= '0';
 
                 if (rx_clk_en = '1') then
                     fsm_nstate <= databits;
@@ -220,9 +193,9 @@ begin
                 end if;
 
             when databits =>
-                fsm_stopbit   <= '0';
-                fsm_databits  <= '1';
-                fsm_receiving <= '1';
+                fsm_stopbit  <= '0';
+                fsm_databits <= '1';
+                fsm_idle     <= '0';
 
                 if ((rx_clk_en = '1') AND (rx_bit_count = "111")) then
                     if (PARITY_BIT = "none") then
@@ -235,9 +208,9 @@ begin
                 end if;
 
             when paritybit =>
-                fsm_stopbit   <= '0';
-                fsm_databits  <= '0';
-                fsm_receiving <= '1';
+                fsm_stopbit  <= '0';
+                fsm_databits <= '0';
+                fsm_idle     <= '0';
 
                 if (rx_clk_en = '1') then
                     fsm_nstate <= stopbit;
@@ -246,9 +219,9 @@ begin
                 end if;
 
             when stopbit =>
-                fsm_stopbit   <= '1';
-                fsm_databits  <= '0';
-                fsm_receiving <= '1';
+                fsm_stopbit  <= '1';
+                fsm_databits <= '0';
+                fsm_idle     <= '0';
 
                 if (rx_clk_en = '1') then
                     fsm_nstate <= idle;
@@ -257,10 +230,10 @@ begin
                 end if;
 
             when others =>
-                fsm_stopbit   <= '0';
-                fsm_databits  <= '0';
-                fsm_receiving <= '0';
-                fsm_nstate    <= idle;
+                fsm_stopbit  <= '0';
+                fsm_databits <= '0';
+                fsm_idle     <= '0';
+                fsm_nstate   <= idle;
 
         end case;
     end process;

@@ -12,11 +12,12 @@ set_global_assignment -name DEVICE 10CL025YU256C8G
 set_global_assignment -name TOP_LEVEL_ENTITY UART_LOOPBACK_CYC1000
 
 # PROJECT VHDL FILES
-set_global_assignment -name VHDL_FILE ../../rtl/uart.vhd
-set_global_assignment -name VHDL_FILE ../../rtl/comp/uart_tx.vhd
-set_global_assignment -name VHDL_FILE ../../rtl/comp/uart_rx.vhd
+set_global_assignment -name VHDL_FILE ../../rtl/comp/uart_clk_div.vhd
 set_global_assignment -name VHDL_FILE ../../rtl/comp/uart_parity.vhd
 set_global_assignment -name VHDL_FILE ../../rtl/comp/uart_debouncer.vhd
+set_global_assignment -name VHDL_FILE ../../rtl/comp/uart_tx.vhd
+set_global_assignment -name VHDL_FILE ../../rtl/comp/uart_rx.vhd
+set_global_assignment -name VHDL_FILE ../../rtl/uart.vhd
 set_global_assignment -name VHDL_FILE ../rst_sync.vhd
 set_global_assignment -name VHDL_FILE ../uart_loopback_cyc1000.vhd
 
