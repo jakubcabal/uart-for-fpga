@@ -1,7 +1,6 @@
 --------------------------------------------------------------------------------
 -- PROJECT: SIMPLE UART FOR FPGA
 --------------------------------------------------------------------------------
--- MODULE:  UART TOP MODULE
 -- AUTHORS: Jakub Cabal <jakubcabal@gmail.com>
 -- LICENSE: The MIT License (MIT), please read LICENSE file
 -- WEBSITE: https://github.com/jakubcabal/uart-for-fpga
@@ -27,6 +26,11 @@ use IEEE.MATH_REAL.ALL;
     -- Removed unnecessary resets.
     -- Signal BUSY replaced by DIN_RDY.
     -- Many other optimizations and changes.
+-- Version 1.2 - released on 23 December 2019
+    -- Added double FF for safe CDC.
+    -- Fixed fake received transaction after FPGA boot without reset.
+    -- Added more precisely clock dividers, dividing with rounding.
+    -- UART loopback example is for CYC1000 board now.
 
 entity UART is
     Generic (
@@ -51,40 +55,49 @@ entity UART is
         DOUT_VLD    : out std_logic; -- when DOUT_VLD = 1, output data (DOUT) are valid (is assert only for one clock cycle)
         FRAME_ERROR : out std_logic  -- when FRAME_ERROR = 1, stop bit was invalid (is assert only for one clock cycle)
     );
-end UART;
+end entity;
 
-architecture FULL of UART is
+architecture RTL of UART is
 
-    constant DIVIDER_VALUE    : integer  := CLK_FREQ/(16*BAUD_RATE);
-    constant CLK_CNT_WIDTH    : integer  := integer(ceil(log2(real(DIVIDER_VALUE))));
-    constant CLK_CNT_MAX      : unsigned := to_unsigned(DIVIDER_VALUE-1, CLK_CNT_WIDTH);
+    constant OS_CLK_DIV_VAL   : integer := integer(real(CLK_FREQ)/real(16*BAUD_RATE));
+    constant UART_CLK_DIV_VAL : integer := integer(real(CLK_FREQ)/real(OS_CLK_DIV_VAL*BAUD_RATE));
 
-    signal uart_clk_cnt       : unsigned(CLK_CNT_WIDTH-1 downto 0);
-    signal uart_clk_en        : std_logic;
-    signal uart_rxd_debounced : std_logic;
+    signal os_clk_en            : std_logic;
+    signal uart_rxd_meta_n      : std_logic;
+    signal uart_rxd_synced_n    : std_logic;
+    signal uart_rxd_debounced_n : std_logic;
+    signal uart_rxd_debounced   : std_logic;
 
 begin
 
     -- -------------------------------------------------------------------------
-    --  UART CLOCK COUNTER AND CLOCK ENABLE FLAG
+    --  UART OVERSAMPLING (~16X) CLOCK DIVIDER AND CLOCK ENABLE FLAG
     -- -------------------------------------------------------------------------
 
-    uart_clk_cnt_p : process (CLK)
+    os_clk_divider_i : entity work.UART_CLK_DIV
+    generic map(
+        DIV_MAX_VAL  => OS_CLK_DIV_VAL,
+        DIV_MARK_POS => OS_CLK_DIV_VAL-1
+    )
+    port map (
+        CLK      => CLK,
+        RST      => RST,
+        CLEAR    => RST,
+        ENABLE   => '1',
+        DIV_MARK => os_clk_en
+    );
+
+    -- -------------------------------------------------------------------------
+    --  UART RXD CROSS DOMAIN CROSSING
+    -- -------------------------------------------------------------------------
+    
+    uart_rxd_cdc_reg_p : process (CLK)
     begin
         if (rising_edge(CLK)) then
-            if (RST = '1') then
-                uart_clk_cnt <= (others => '0');
-            else
-                if (uart_clk_en = '1') then
-                    uart_clk_cnt <= (others => '0');
-                else
-                    uart_clk_cnt <= uart_clk_cnt + 1;
-                end if;
-            end if;
+            uart_rxd_meta_n   <= not UART_RXD;
+            uart_rxd_synced_n <= uart_rxd_meta_n;
         end if;
     end process;
-
-    uart_clk_en <= '1' when (uart_clk_cnt = CLK_CNT_MAX) else '0';
 
     -- -------------------------------------------------------------------------
     --  UART RXD DEBAUNCER
@@ -97,34 +110,16 @@ begin
         )
         port map (
             CLK     => CLK,
-            DEB_IN  => UART_RXD,
-            DEB_OUT => uart_rxd_debounced
+            DEB_IN  => uart_rxd_synced_n,
+            DEB_OUT => uart_rxd_debounced_n
         );
     end generate;
 
     not_use_debouncer_g : if (USE_DEBOUNCER = False) generate
-        uart_rxd_debounced <= UART_RXD;
+        uart_rxd_debounced_n <= uart_rxd_synced_n;
     end generate;
 
-    -- -------------------------------------------------------------------------
-    --  UART TRANSMITTER
-    -- -------------------------------------------------------------------------
-
-    uart_tx_i: entity work.UART_TX
-    generic map (
-        PARITY_BIT  => PARITY_BIT
-    )
-    port map (
-        CLK         => CLK,
-        RST         => RST,
-        -- UART INTERFACE
-        UART_CLK_EN => uart_clk_en,
-        UART_TXD    => UART_TXD,
-        -- USER DATA INPUT INTERFACE
-        DIN         => DIN,
-        DIN_VLD     => DIN_VLD,
-        DIN_RDY     => DIN_RDY
-    );
+    uart_rxd_debounced <= not uart_rxd_debounced_n;
 
     -- -------------------------------------------------------------------------
     --  UART RECEIVER
@@ -132,18 +127,41 @@ begin
 
     uart_rx_i: entity work.UART_RX
     generic map (
+        CLK_DIV_VAL => UART_CLK_DIV_VAL,
+        PARITY_BIT  => PARITY_BIT
+    )
+    port map (
+        CLK          => CLK,
+        RST          => RST,
+        -- UART INTERFACE
+        UART_CLK_EN  => os_clk_en,
+        UART_RXD     => uart_rxd_debounced,
+        -- USER DATA OUTPUT INTERFACE
+        DOUT         => DOUT,
+        DOUT_VLD     => DOUT_VLD,
+        FRAME_ERROR  => FRAME_ERROR,
+        PARITY_ERROR => open
+    );
+
+    -- -------------------------------------------------------------------------
+    --  UART TRANSMITTER
+    -- -------------------------------------------------------------------------
+
+    uart_tx_i: entity work.UART_TX
+    generic map (
+        CLK_DIV_VAL => UART_CLK_DIV_VAL,
         PARITY_BIT  => PARITY_BIT
     )
     port map (
         CLK         => CLK,
         RST         => RST,
         -- UART INTERFACE
-        UART_CLK_EN => uart_clk_en,
-        UART_RXD    => uart_rxd_debounced,
-        -- USER DATA OUTPUT INTERFACE
-        DOUT        => DOUT,
-        DOUT_VLD    => DOUT_VLD,
-        FRAME_ERROR => FRAME_ERROR
+        UART_CLK_EN => os_clk_en,
+        UART_TXD    => UART_TXD,
+        -- USER DATA INPUT INTERFACE
+        DIN         => DIN,
+        DIN_VLD     => DIN_VLD,
+        DIN_RDY     => DIN_RDY
     );
 
-end FULL;
+end architecture;

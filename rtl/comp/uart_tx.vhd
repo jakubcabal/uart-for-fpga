@@ -1,7 +1,6 @@
 --------------------------------------------------------------------------------
 -- PROJECT: SIMPLE UART FOR FPGA
 --------------------------------------------------------------------------------
--- MODULE:  UART TRANSMITTER
 -- AUTHORS: Jakub Cabal <jakubcabal@gmail.com>
 -- LICENSE: The MIT License (MIT), please read LICENSE file
 -- WEBSITE: https://github.com/jakubcabal/uart-for-fpga
@@ -13,7 +12,8 @@ use IEEE.NUMERIC_STD.ALL;
 
 entity UART_TX is
     Generic (
-        PARITY_BIT  : string := "none" -- type of parity: "none", "even", "odd", "mark", "space"
+        CLK_DIV_VAL : integer := 16;
+        PARITY_BIT  : string  := "none" -- type of parity: "none", "even", "odd", "mark", "space"
     );
     Port (
         CLK         : in  std_logic; -- system clock
@@ -30,15 +30,14 @@ end UART_TX;
 
 architecture FULL of UART_TX is
 
-    signal tx_clk_en         : std_logic;
-    signal tx_clk_divider_en : std_logic;
-    signal tx_ticks          : unsigned(3 downto 0);
-    signal tx_data           : std_logic_vector(7 downto 0);
-    signal tx_bit_count      : unsigned(2 downto 0);
-    signal tx_bit_count_en   : std_logic;
-    signal tx_ready          : std_logic;
-    signal tx_parity_bit     : std_logic;
-    signal tx_data_out_sel   : std_logic_vector(1 downto 0);
+    signal tx_clk_en       : std_logic;
+    signal tx_clk_div_clr  : std_logic;
+    signal tx_data         : std_logic_vector(7 downto 0);
+    signal tx_bit_count    : unsigned(2 downto 0);
+    signal tx_bit_count_en : std_logic;
+    signal tx_ready        : std_logic;
+    signal tx_parity_bit   : std_logic;
+    signal tx_data_out_sel : std_logic_vector(1 downto 0);
 
     type state is (idle, txsync, startbit, databits, paritybit, stopbit);
     signal tx_pstate : state;
@@ -49,40 +48,21 @@ begin
     DIN_RDY <= tx_ready;
 
     -- -------------------------------------------------------------------------
-    -- UART TRANSMITTER CLOCK DIVIDER
+    -- UART TRANSMITTER CLOCK DIVIDER AND CLOCK ENABLE FLAG
     -- -------------------------------------------------------------------------
 
-    uart_tx_clk_divider_p : process (CLK)
-    begin
-        if (rising_edge(CLK)) then
-            if (tx_clk_divider_en = '1') then
-                if (uart_clk_en = '1') then
-                    if (tx_ticks = "1111") then
-                        tx_ticks <= (others => '0');
-                    else
-                        tx_ticks <= tx_ticks + 1;
-                    end if;
-                else
-                    tx_ticks <= tx_ticks;
-                end if;
-            else
-                tx_ticks <= (others => '0');
-            end if;
-        end if;
-    end process;
-
-    uart_tx_clk_en_p : process (CLK)
-    begin
-        if (rising_edge(CLK)) then
-            if (RST = '1') then
-                tx_clk_en <= '0';
-            elsif (uart_clk_en = '1' AND tx_ticks = "0001") then
-                tx_clk_en <= '1';
-            else
-                tx_clk_en <= '0';
-            end if;
-        end if;
-    end process;
+    tx_clk_divider_i : entity work.UART_CLK_DIV
+    generic map(
+        DIV_MAX_VAL  => CLK_DIV_VAL,
+        DIV_MARK_POS => 1
+    )
+    port map (
+        CLK      => CLK,
+        RST      => RST,
+        CLEAR    => tx_clk_div_clr,
+        ENABLE   => UART_CLK_EN,
+        DIV_MARK => tx_clk_en
+    );
 
     -- -------------------------------------------------------------------------
     -- UART TRANSMITTER INPUT DATA REGISTER
@@ -186,7 +166,7 @@ begin
                 tx_ready <= '1';
                 tx_data_out_sel <= "00";
                 tx_bit_count_en <= '0';
-                tx_clk_divider_en <= '0';
+                tx_clk_div_clr <= '1';
 
                 if (DIN_VLD = '1') then
                     tx_nstate <= txsync;
@@ -198,7 +178,7 @@ begin
                 tx_ready <= '0';
                 tx_data_out_sel <= "00";
                 tx_bit_count_en <= '0';
-                tx_clk_divider_en <= '1';
+                tx_clk_div_clr <= '0';
 
                 if (tx_clk_en = '1') then
                     tx_nstate <= startbit;
@@ -210,7 +190,7 @@ begin
                 tx_ready <= '0';
                 tx_data_out_sel <= "01";
                 tx_bit_count_en <= '0';
-                tx_clk_divider_en <= '1';
+                tx_clk_div_clr <= '0';
 
                 if (tx_clk_en = '1') then
                     tx_nstate <= databits;
@@ -222,7 +202,7 @@ begin
                 tx_ready <= '0';
                 tx_data_out_sel <= "10";
                 tx_bit_count_en <= '1';
-                tx_clk_divider_en <= '1';
+                tx_clk_div_clr <= '0';
 
                 if ((tx_clk_en = '1') AND (tx_bit_count = "111")) then
                     if (PARITY_BIT = "none") then
@@ -238,7 +218,7 @@ begin
                 tx_ready <= '0';
                 tx_data_out_sel <= "11";
                 tx_bit_count_en <= '0';
-                tx_clk_divider_en <= '1';
+                tx_clk_div_clr <= '0';
 
                 if (tx_clk_en = '1') then
                     tx_nstate <= stopbit;
@@ -250,7 +230,7 @@ begin
                 tx_ready <= '1';
                 tx_data_out_sel <= "00";
                 tx_bit_count_en <= '0';
-                tx_clk_divider_en <= '1';
+                tx_clk_div_clr <= '0';
 
                 if (DIN_VLD = '1') then
                     tx_nstate <= txsync;
@@ -264,7 +244,7 @@ begin
                 tx_ready <= '0';
                 tx_data_out_sel <= "00";
                 tx_bit_count_en <= '0';
-                tx_clk_divider_en <= '0';
+                tx_clk_div_clr <= '0';
                 tx_nstate <= idle;
 
         end case;

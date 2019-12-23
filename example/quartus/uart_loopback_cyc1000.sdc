@@ -1,10 +1,9 @@
 #-------------------------------------------------------------------------------
 # PROJECT: SIMPLE UART FOR FPGA
 #-------------------------------------------------------------------------------
-# NAME:    QUARTUS PROJECT FILE
 # AUTHORS: Jakub Cabal <jakubcabal@gmail.com>
 # LICENSE: The MIT License (MIT), please read LICENSE file
 # WEBSITE: https://github.com/jakubcabal/uart-for-fpga
 #-------------------------------------------------------------------------------
 
-PROJECT_REVISION = "uart_loopback"
+create_clock -name CLK12M -period 12MHz [get_ports {CLK_12M}]
