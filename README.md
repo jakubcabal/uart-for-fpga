@@ -36,16 +36,16 @@ USE_DEBOUNCER : boolean := True    -- enable/disable debouncer
 
 ## Table of resource usage summary:
 
-Use debouncer | Parity type | LE (LUT+FF) | LUT | FF | BRAM | Fmax
+Use debouncer | Parity type | LE (LUT+FF) | LUT | FF | M9k | Fmax
 :---:|:---:|:---:|:---:|:---:|:---:|:---:
-True | none | 74 | 59 | 53 | 0 | 220.0 MHz
-True | even/odd | 81 | 70 | 56 | 0 | 193.3 MHz
-True | mark/space | 78 | 63 | 56 | 0 | 210.2 MHz
-False | none | 70 | 57 | 49 | 0 | 182.3 MHz
-False | even/odd | 78 | 68 | 52 | 0 | 183.5 MHz
-False | mark/space | 74 | 61 | 52 | 0 | 186.2 MHz
+True  | none       | 76 | 62 | 56 | 0 | 304.8 MHz
+True  | even/odd   | 86 | 73 | 59 | 0 | 277.3 MHz
+True  | mark/space | 80 | 66 | 59 | 0 | 292.3 MHz
+False | none       | 73 | 60 | 52 | 0 | 308.7 MHz
+False | even/odd   | 79 | 71 | 55 | 0 | 278.7 MHz
+False | mark/space | 77 | 64 | 55 | 0 | 338.0 MHz
 
-*Implementation was performed using Quartus Prime Lite Edition 17.0.0 for FPGA Altera Cyclone IV E EP4CE6E22C8. Setting of some generics: BAUD_RATE = 115200, CLK_FREQ = 50e6.*
+*Implementation was performed using Quartus Prime Lite Edition 18.1.0 for Intel Cyclone 10 FPGA (10CL025YU256C8G). Setting of some generics: BAUD_RATE = 115200, CLK_FREQ = 50e6.*
 
 ## Simulation:
 
