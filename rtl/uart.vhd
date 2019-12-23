@@ -26,7 +26,7 @@ use IEEE.MATH_REAL.ALL;
     -- Removed unnecessary resets.
     -- Signal BUSY replaced by DIN_RDY.
     -- Many other optimizations and changes.
--- Version 1.2 -
+-- Version 1.2 - released on 23 December 2019
     -- Added double FF for safe CDC.
     -- Fixed fake received transaction after FPGA boot without reset.
     -- Added more precisely clock dividers, dividing with rounding.
