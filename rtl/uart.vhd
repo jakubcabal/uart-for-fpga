@@ -31,6 +31,7 @@ use IEEE.MATH_REAL.ALL;
     -- Added double FF for safe CDC.
     -- Fixed fake received transaction after FPGA boot without reset.
     -- Added more precisely clock dividers, dividing with rounding.
+    -- UART loopback example is for CYC1000 board now.
 
 entity UART is
     Generic (

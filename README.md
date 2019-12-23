@@ -57,8 +57,7 @@ vsim -do sim/sim.tcl
 
 ## UART loopback example:
 
-The UART loopback example design is for testing data transfer between FPGA and PC.
-I use it on my cheap FPGA board ([EP4CE6 Starter Board](http://www.ebay.com/itm/111975895262) with Altera FPGA Cyclone IV EP4CE6E22C8) together with external USB to UART Bridge.
+The UART loopback example design is for testing data transfer between FPGA and PC. I use it on my FPGA board [CYC1000](https://shop.trenz-electronic.de/en/TEI0003-02-CYC1000-with-Cyclone-10-FPGA-8-MByte-SDRAM) with Intel Cyclone 10 FPGA (10CL025YU256C8G) and FTDI USB to UART Bridge.
 
 ## License:
 
