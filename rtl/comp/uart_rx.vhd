@@ -10,10 +10,13 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
+use IEEE.MATH_REAL.ALL;
 
 entity UART_RX is
     Generic (
-        PARITY_BIT  : string := "none" -- type of parity: "none", "even", "odd", "mark", "space"
+        CLK_FREQ   : integer := 50e6;   -- system clock frequency in Hz
+        BAUD_RATE  : integer := 115200; -- baud rate value
+        PARITY_BIT : string := "none" -- type of parity: "none", "even", "odd", "mark", "space"
     );
     Port (
         CLK          : in  std_logic; -- system clock
@@ -31,8 +34,12 @@ end entity;
 
 architecture RTL of UART_RX is
 
+    constant OS_CLK_DIV_VAL     : integer := integer(real(CLK_FREQ)/real(16*BAUD_RATE));
+    constant UART_CLK_DIV_VAL   : integer := integer(real(CLK_FREQ)/real(OS_CLK_DIV_VAL*BAUD_RATE));
+    constant UART_CLK_DIV_WIDTH : integer := integer(ceil(log2(real(UART_CLK_DIV_VAL))));
+
     signal rx_clk_en          : std_logic;
-    signal rx_ticks           : unsigned(3 downto 0);
+    signal rx_ticks           : unsigned(UART_CLK_DIV_WIDTH-1 downto 0);
     signal rx_data            : std_logic_vector(7 downto 0);
     signal rx_bit_count       : unsigned(2 downto 0);
     signal rx_parity_bit      : std_logic;
@@ -58,7 +65,7 @@ begin
         if (rising_edge(CLK)) then
             if (fsm_receiving = '1') then
                 if (UART_CLK_EN = '1') then
-                    if (rx_ticks = "1111") then
+                    if (rx_ticks = UART_CLK_DIV_VAL-1) then
                         rx_ticks <= (others => '0');
                     else
                         rx_ticks <= rx_ticks + 1;
@@ -77,7 +84,7 @@ begin
         if (rising_edge(CLK)) then
             if (RST = '1') then
                 rx_clk_en <= '0';
-            elsif (UART_CLK_EN = '1' AND rx_ticks = "0111") then
+            elsif (UART_CLK_EN = '1' AND rx_ticks = 3) then
                 rx_clk_en <= '1';
             else
                 rx_clk_en <= '0';

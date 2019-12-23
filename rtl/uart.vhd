@@ -30,6 +30,7 @@ use IEEE.MATH_REAL.ALL;
 -- Version 1.2 -
     -- Added double FF for safe CDC.
     -- Fixed fake received transaction after FPGA boot without reset.
+    -- Added more precisely clock dividers, dividing with rounding.
 
 entity UART is
     Generic (
@@ -58,12 +59,11 @@ end entity;
 
 architecture RTL of UART is
 
-    constant DIVIDER_VALUE : integer  := CLK_FREQ/(16*BAUD_RATE);
-    constant CLK_CNT_WIDTH : integer  := integer(ceil(log2(real(DIVIDER_VALUE))));
-    constant CLK_CNT_MAX   : unsigned := to_unsigned(DIVIDER_VALUE-1, CLK_CNT_WIDTH);
+    constant OS_CLK_DIV_VAL   : integer := integer(real(CLK_FREQ)/real(16*BAUD_RATE));
+    constant OS_CLK_DIV_WIDTH : integer := integer(ceil(log2(real(OS_CLK_DIV_VAL))));
 
-    signal oversampling_clk_cnt : unsigned(CLK_CNT_WIDTH-1 downto 0);
-    signal oversampling_clk_en  : std_logic;
+    signal os_clk_div_cnt       : unsigned(OS_CLK_DIV_WIDTH-1 downto 0);
+    signal os_clk_div_cnt_max   : std_logic;
     signal uart_rxd_meta_n      : std_logic;
     signal uart_rxd_synced_n    : std_logic;
     signal uart_rxd_debounced_n : std_logic;
@@ -72,25 +72,25 @@ architecture RTL of UART is
 begin
 
     -- -------------------------------------------------------------------------
-    --  UART OVERSAMPLING (16X) CLOCK COUNTER AND CLOCK ENABLE FLAG
+    --  UART OVERSAMPLING (16X) CLOCK DIVIDER AND CLOCK ENABLE FLAG
     -- -------------------------------------------------------------------------
 
-    oversampling_clk_cnt_p : process (CLK)
+    os_clk_div_cnt_p : process (CLK)
     begin
         if (rising_edge(CLK)) then
             if (RST = '1') then
-                oversampling_clk_cnt <= (others => '0');
+                os_clk_div_cnt <= (others => '0');
             else
-                if (oversampling_clk_en = '1') then
-                    oversampling_clk_cnt <= (others => '0');
+                if (os_clk_div_cnt_max = '1') then
+                    os_clk_div_cnt <= (others => '0');
                 else
-                    oversampling_clk_cnt <= oversampling_clk_cnt + 1;
+                    os_clk_div_cnt <= os_clk_div_cnt + 1;
                 end if;
             end if;
         end if;
     end process;
 
-    oversampling_clk_en <= '1' when (oversampling_clk_cnt = CLK_CNT_MAX) else '0';
+    os_clk_div_cnt_max <= '1' when (os_clk_div_cnt = OS_CLK_DIV_VAL-1) else '0';
 
     -- -------------------------------------------------------------------------
     --  UART RXD CROSS DOMAIN CROSSING
@@ -132,13 +132,15 @@ begin
 
     uart_rx_i: entity work.UART_RX
     generic map (
-        PARITY_BIT  => PARITY_BIT
+        CLK_FREQ   => CLK_FREQ,
+        BAUD_RATE  => BAUD_RATE,
+        PARITY_BIT => PARITY_BIT
     )
     port map (
         CLK          => CLK,
         RST          => RST,
         -- UART INTERFACE
-        UART_CLK_EN  => oversampling_clk_en,
+        UART_CLK_EN  => os_clk_div_cnt_max,
         UART_RXD     => uart_rxd_debounced,
         -- USER DATA OUTPUT INTERFACE
         DOUT         => DOUT,
@@ -153,13 +155,15 @@ begin
 
     uart_tx_i: entity work.UART_TX
     generic map (
-        PARITY_BIT  => PARITY_BIT
+        CLK_FREQ   => CLK_FREQ,
+        BAUD_RATE  => BAUD_RATE,
+        PARITY_BIT => PARITY_BIT
     )
     port map (
         CLK         => CLK,
         RST         => RST,
         -- UART INTERFACE
-        UART_CLK_EN => oversampling_clk_en,
+        UART_CLK_EN => os_clk_div_cnt_max,
         UART_TXD    => UART_TXD,
         -- USER DATA INPUT INTERFACE
         DIN         => DIN,
