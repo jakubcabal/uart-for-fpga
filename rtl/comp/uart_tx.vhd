@@ -26,9 +26,9 @@ entity UART_TX is
         DIN_VLD     : in  std_logic; -- when DIN_VLD = 1, input data (DIN) are valid
         DIN_RDY     : out std_logic  -- when DIN_RDY = 1, transmitter is ready and valid input data will be accepted for transmiting
     );
-end UART_TX;
+end entity;
 
-architecture FULL of UART_TX is
+architecture RTL of UART_TX is
 
     signal tx_clk_en       : std_logic;
     signal tx_clk_div_clr  : std_logic;
@@ -250,4 +250,4 @@ begin
         end case;
     end process;
 
-end FULL;
+end architecture;

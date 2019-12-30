@@ -33,6 +33,7 @@ use IEEE.MATH_REAL.ALL;
     -- UART loopback example is for CYC1000 board now.
 -- Version 1.3 - 
     -- Added better simulation with automatic checking of transactions.
+    -- Little code cleaning and code optimization.
 
 entity UART is
     Generic (

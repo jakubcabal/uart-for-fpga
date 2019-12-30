@@ -1,7 +1,6 @@
 --------------------------------------------------------------------------------
 -- PROJECT: SIMPLE UART FOR FPGA
 --------------------------------------------------------------------------------
--- MODULE:  UART PARITY BIT GENERATOR
 -- AUTHORS: Jakub Cabal <jakubcabal@gmail.com>
 -- LICENSE: The MIT License (MIT), please read LICENSE file
 -- WEBSITE: https://github.com/jakubcabal/uart-for-fpga
@@ -20,9 +19,9 @@ entity UART_PARITY is
         DATA_IN     : in  std_logic_vector(DATA_WIDTH-1 downto 0);
         PARITY_OUT  : out std_logic
     );
-end UART_PARITY;
+end entity;
 
-architecture FULL of UART_PARITY is
+architecture RTL of UART_PARITY is
 
 begin
 
@@ -31,7 +30,6 @@ begin
     -- -------------------------------------------------------------------------
 
     even_parity_g : if (PARITY_TYPE = "even") generate
-
         process (DATA_IN)
         	variable parity_temp : std_logic;
         begin
@@ -41,11 +39,9 @@ begin
             end loop;
             PARITY_OUT <= parity_temp;
         end process;
-
     end generate;
 
     odd_parity_g : if (PARITY_TYPE = "odd") generate
-
         process (DATA_IN)
         	variable parity_temp : std_logic;
         begin
@@ -55,19 +51,14 @@ begin
             end loop;
             PARITY_OUT <= parity_temp;
         end process;
-
     end generate;
 
     mark_parity_g : if (PARITY_TYPE = "mark") generate
-
         PARITY_OUT <= '1';
-
     end generate;
 
     space_parity_g : if (PARITY_TYPE = "space") generate
-
         PARITY_OUT <= '0';
-
     end generate;
 
-end FULL;
+end architecture;

@@ -12,9 +12,9 @@ use IEEE.NUMERIC_STD.ALL;
 use IEEE.MATH_REAL.ALL;
 
 entity UART_TB is
-end UART_TB;
+end entity;
 
-architecture FULL of UART_TB is
+architecture SIM of UART_TB is
 
     signal CLK : std_logic;
     signal RST : std_logic;

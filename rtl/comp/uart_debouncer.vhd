@@ -1,7 +1,6 @@
 --------------------------------------------------------------------------------
 -- PROJECT: SIMPLE UART FOR FPGA
 --------------------------------------------------------------------------------
--- MODULE:  UART DEBOUNCER
 -- AUTHORS: Jakub Cabal <jakubcabal@gmail.com>
 -- LICENSE: The MIT License (MIT), please read LICENSE file
 -- WEBSITE: https://github.com/jakubcabal/uart-for-fpga
@@ -22,7 +21,7 @@ entity UART_DEBOUNCER is
         DEB_IN  : in  std_logic; -- input of signal from outside FPGA
         DEB_OUT : out std_logic  -- output of debounced (filtered) signal
     );
-end UART_DEBOUNCER;
+end entity;
 
 architecture RTL of UART_DEBOUNCER is
 
@@ -76,4 +75,4 @@ begin
         end if;
     end process;
 
-end RTL;
+end architecture;
