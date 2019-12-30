@@ -22,6 +22,8 @@ vcom -93 ./uart_tb.vhd
 vsim work.uart_tb
 
 # Setup and start simulation
-#add wave *
 add wave sim:/uart_tb/utt/*
-run 200 us
+#add wave sim:/uart_tb/utt/uart_rx_i/*
+#add wave sim:/uart_tb/utt/uart_tx_i/*
+#add wave sim:/uart_tb/*
+run -All

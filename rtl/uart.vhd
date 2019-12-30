@@ -31,6 +31,8 @@ use IEEE.MATH_REAL.ALL;
     -- Fixed fake received transaction after FPGA boot without reset.
     -- Added more precisely clock dividers, dividing with rounding.
     -- UART loopback example is for CYC1000 board now.
+-- Version 1.3 - 
+    -- Added better simulation with automatic checking of transactions.
 
 entity UART is
     Generic (
