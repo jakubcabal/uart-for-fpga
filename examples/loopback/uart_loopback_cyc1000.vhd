@@ -2,7 +2,7 @@
 -- PROJECT: SIMPLE UART FOR FPGA
 --------------------------------------------------------------------------------
 -- AUTHORS: Jakub Cabal <jakubcabal@gmail.com>
--- LICENSE: The MIT License (MIT), please read LICENSE file
+-- LICENSE: The MIT License, please read LICENSE file
 -- WEBSITE: https://github.com/jakubcabal/uart-for-fpga
 --------------------------------------------------------------------------------
 

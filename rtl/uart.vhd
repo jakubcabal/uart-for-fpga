@@ -2,7 +2,7 @@
 -- PROJECT: SIMPLE UART FOR FPGA
 --------------------------------------------------------------------------------
 -- AUTHORS: Jakub Cabal <jakubcabal@gmail.com>
--- LICENSE: The MIT License (MIT), please read LICENSE file
+-- LICENSE: The MIT License, please read LICENSE file
 -- WEBSITE: https://github.com/jakubcabal/uart-for-fpga
 --------------------------------------------------------------------------------
 
@@ -34,6 +34,7 @@ use IEEE.MATH_REAL.ALL;
 -- Version 1.3 - 
     -- Added better simulation with automatic checking of transactions.
     -- Little code cleaning and code optimization.
+    -- Added UART2WB bridge example (access to WB registers via UART).
 
 entity UART is
     Generic (
