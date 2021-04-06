@@ -55,10 +55,22 @@ A basic simulation is prepared in the repository. You can use the prepared TCL s
 vsim -do sim/sim.tcl
 ```
 
-## UART loopback example:
+## Examples:
 
-The UART loopback example design is for testing data transfer between FPGA and PC. I use it on my FPGA board [CYC1000](https://shop.trenz-electronic.de/en/TEI0003-02-CYC1000-with-Cyclone-10-FPGA-8-MByte-SDRAM) with Intel Cyclone 10 FPGA (10CL025YU256C8G) and FTDI USB to UART Bridge.
+The repository also includes several UART example designs. I use it on my FPGA board [CYC1000](https://shop.trenz-electronic.de/en/TEI0003-02-CYC1000-with-Cyclone-10-FPGA-8-MByte-SDRAM) with Intel Cyclone 10 FPGA (10CL025YU256C8G) and FTDI USB to UART Bridge. Here you can find [the documentation of the CYC1000 board](https://www.trenz-electronic.de/fileadmin/docs/Trenz_Electronic/Modules_and_Module_Carriers/2.5x6.15/TEI0003/REV02/Documents/CYC1000%20User%20Guide.pdf).
+
+### UART loopback:
+
+The UART loopback example design is for testing data transfer between FPGA and PC. Data that you send from the PC to the FPGA via UART will be automatically sent back to the PC.
+
+![Block diagram of UART loopback example design](docs/uart_loopback.svg)
+
+### UART2WB bridge:
+
+The UART2WB bridge example design is for testing access to Wishbone registers via the UART bridge. The example uses a simple script written in Python that allows you to read or write to 32-bit user registers connected to the Wishbone bus.
+
+![Block diagram of UART2WB bridge example design](docs/uart2wb.svg)
 
 ## License:
 
-This UART controller is available under the MIT license (MIT). Please read [LICENSE file](LICENSE).
+This UART controller is available under the MIT license. Please read [LICENSE file](LICENSE).
