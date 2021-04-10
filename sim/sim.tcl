@@ -1,9 +1,8 @@
 #-------------------------------------------------------------------------------
 # PROJECT: SIMPLE UART FOR FPGA
 #-------------------------------------------------------------------------------
-# MODULE:  SIMULATION TCL SCRIPT FOR MODELSIM
 # AUTHORS: Jakub Cabal <jakubcabal@gmail.com>
-# LICENSE: The MIT License (MIT), please read LICENSE file
+# LICENSE: The MIT License, please read LICENSE file
 # WEBSITE: https://github.com/jakubcabal/uart-for-fpga
 #-------------------------------------------------------------------------------
 
@@ -11,6 +10,7 @@
 vlib work
 
 # Compile VHDL files
+vcom -93 ../rtl/comp/uart_clk_div.vhd
 vcom -93 ../rtl/comp/uart_debouncer.vhd
 vcom -93 ../rtl/comp/uart_parity.vhd
 vcom -93 ../rtl/comp/uart_tx.vhd
@@ -22,6 +22,8 @@ vcom -93 ./uart_tb.vhd
 vsim work.uart_tb
 
 # Setup and start simulation
-#add wave *
 add wave sim:/uart_tb/utt/*
-run 200 us
+#add wave sim:/uart_tb/utt/uart_rx_i/*
+#add wave sim:/uart_tb/utt/uart_tx_i/*
+#add wave sim:/uart_tb/*
+run -All

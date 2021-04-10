@@ -1,0 +1,32 @@
+#-------------------------------------------------------------------------------
+# PROJECT: SIMPLE UART FOR FPGA
+#-------------------------------------------------------------------------------
+# AUTHORS: Jakub Cabal <jakubcabal@gmail.com>
+# LICENSE: The MIT License, please read LICENSE file
+# WEBSITE: https://github.com/jakubcabal/uart-for-fpga
+#-------------------------------------------------------------------------------
+
+# QUARTUS SETTINGS FILE FOR CYC1000 BOARD
+set_global_assignment -name FAMILY "Cyclone 10 LP"
+set_global_assignment -name DEVICE 10CL025YU256C8G
+set_global_assignment -name TOP_LEVEL_ENTITY UART2WB_FPGA_CYC1000
+
+# PROJECT VHDL FILES
+set_global_assignment -name VHDL_FILE ../../../rtl/comp/uart_clk_div.vhd
+set_global_assignment -name VHDL_FILE ../../../rtl/comp/uart_parity.vhd
+set_global_assignment -name VHDL_FILE ../../../rtl/comp/uart_debouncer.vhd
+set_global_assignment -name VHDL_FILE ../../../rtl/comp/uart_tx.vhd
+set_global_assignment -name VHDL_FILE ../../../rtl/comp/uart_rx.vhd
+set_global_assignment -name VHDL_FILE ../../../rtl/uart.vhd
+set_global_assignment -name VHDL_FILE ../../common/rst_sync.vhd
+set_global_assignment -name VHDL_FILE ../uart2wbm.vhd
+set_global_assignment -name VHDL_FILE ../uart2wb_fpga_cyc1000.vhd
+
+# TIMING CONSTRAINTS
+set_global_assignment -name SDC_FILE ./uart2wb_cyc1000.sdc
+
+# FPGA PINS ASSIGNMENT
+set_location_assignment PIN_M2 -to CLK_12M
+set_location_assignment PIN_N6 -to RST_BTN_N
+set_location_assignment PIN_T7 -to UART_TXD
+set_location_assignment PIN_R7 -to UART_RXD

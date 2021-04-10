@@ -2,7 +2,7 @@
 -- PROJECT: SIMPLE UART FOR FPGA
 --------------------------------------------------------------------------------
 -- AUTHORS: Jakub Cabal <jakubcabal@gmail.com>
--- LICENSE: The MIT License (MIT), please read LICENSE file
+-- LICENSE: The MIT License, please read LICENSE file
 -- WEBSITE: https://github.com/jakubcabal/uart-for-fpga
 --------------------------------------------------------------------------------
 
@@ -55,11 +55,7 @@ begin
     div_mark_p : process (CLK)
     begin
         if (rising_edge(CLK)) then
-            if (RST = '1') then
-                DIV_MARK <= '0';
-            else
-                DIV_MARK <= ENABLE and clk_div_cnt_mark;
-            end if;
+            DIV_MARK <= ENABLE and clk_div_cnt_mark;
         end if;
     end process;
 

@@ -2,7 +2,7 @@
 -- PROJECT: SIMPLE UART FOR FPGA
 --------------------------------------------------------------------------------
 -- AUTHORS: Jakub Cabal <jakubcabal@gmail.com>
--- LICENSE: The MIT License (MIT), please read LICENSE file
+-- LICENSE: The MIT License, please read LICENSE file
 -- WEBSITE: https://github.com/jakubcabal/uart-for-fpga
 --------------------------------------------------------------------------------
 
@@ -16,22 +16,6 @@ use IEEE.MATH_REAL.ALL;
 -- UART FOR FPGA REQUIRES: 1 START BIT, 8 DATA BITS, 1 STOP BIT!!!
 -- OTHER PARAMETERS CAN BE SET USING GENERICS.
 
--- DESCRIPTION OF RELEASED VERSIONS:
--- =================================
--- Version 1.0 - released on 27 May 2016
-    -- Initial release.
--- Version 1.1 - released on 20 December 2018
-    -- Added better debouncer.
-    -- Added simulation script and Quartus project file.
-    -- Removed unnecessary resets.
-    -- Signal BUSY replaced by DIN_RDY.
-    -- Many other optimizations and changes.
--- Version 1.2 - released on 23 December 2019
-    -- Added double FF for safe CDC.
-    -- Fixed fake received transaction after FPGA boot without reset.
-    -- Added more precisely clock dividers, dividing with rounding.
-    -- UART loopback example is for CYC1000 board now.
-
 entity UART is
     Generic (
         CLK_FREQ      : integer := 50e6;   -- system clock frequency in Hz
@@ -41,19 +25,20 @@ entity UART is
     );
     Port (
         -- CLOCK AND RESET
-        CLK         : in  std_logic; -- system clock
-        RST         : in  std_logic; -- high active synchronous reset
+        CLK          : in  std_logic; -- system clock
+        RST          : in  std_logic; -- high active synchronous reset
         -- UART INTERFACE
-        UART_TXD    : out std_logic; -- serial transmit data
-        UART_RXD    : in  std_logic; -- serial receive data
+        UART_TXD     : out std_logic; -- serial transmit data
+        UART_RXD     : in  std_logic; -- serial receive data
         -- USER DATA INPUT INTERFACE
-        DIN         : in  std_logic_vector(7 downto 0); -- input data to be transmitted over UART
-        DIN_VLD     : in  std_logic; -- when DIN_VLD = 1, input data (DIN) are valid
-        DIN_RDY     : out std_logic; -- when DIN_RDY = 1, transmitter is ready and valid input data will be accepted for transmiting
+        DIN          : in  std_logic_vector(7 downto 0); -- input data to be transmitted over UART
+        DIN_VLD      : in  std_logic; -- when DIN_VLD = 1, input data (DIN) are valid
+        DIN_RDY      : out std_logic; -- when DIN_RDY = 1, transmitter is ready and valid input data will be accepted for transmiting
         -- USER DATA OUTPUT INTERFACE
-        DOUT        : out std_logic_vector(7 downto 0); -- output data received via UART
-        DOUT_VLD    : out std_logic; -- when DOUT_VLD = 1, output data (DOUT) are valid (is assert only for one clock cycle)
-        FRAME_ERROR : out std_logic  -- when FRAME_ERROR = 1, stop bit was invalid (is assert only for one clock cycle)
+        DOUT         : out std_logic_vector(7 downto 0); -- output data received via UART
+        DOUT_VLD     : out std_logic; -- when DOUT_VLD = 1, output data (DOUT) are valid (is assert only for one clock cycle)
+        FRAME_ERROR  : out std_logic; -- when FRAME_ERROR = 1, stop bit was invalid (is assert only for one clock cycle)
+        PARITY_ERROR : out std_logic  -- when PARITY_ERROR = 1, parity bit was invalid (is assert only for one clock cycle)
     );
 end entity;
 
@@ -140,7 +125,7 @@ begin
         DOUT         => DOUT,
         DOUT_VLD     => DOUT_VLD,
         FRAME_ERROR  => FRAME_ERROR,
-        PARITY_ERROR => open
+        PARITY_ERROR => PARITY_ERROR
     );
 
     -- -------------------------------------------------------------------------
