@@ -57,8 +57,6 @@ architecture RTL of UART2WBM is
 
 begin
 
-    WB_CYC <= '1';
-
     process (CLK)
     begin
         if (rising_edge(CLK)) then
@@ -104,11 +102,12 @@ begin
         addr_next    <= addr_reg;
         dout_next    <= dout_reg;
         WB_STB       <= '0';
+        WB_CYC       <= '0';
         uart_din     <= cmd_reg;
         uart_din_vld <= '0';
 
         case fsm_pstate is
-            when cmd =>
+            when cmd => -- idle and read request cmd from UART
                 cmd_next <= uart_dout;
 
                 if (uart_dout_vld = '1') then
@@ -117,7 +116,7 @@ begin
                     fsm_nstate <= cmd;
                 end if;
 
-            when addr_low =>
+            when addr_low => -- read low bits of address from UART
                 addr_next(7 downto 0) <= uart_dout;
 
                 if (uart_dout_vld = '1') then
@@ -126,20 +125,20 @@ begin
                     fsm_nstate <= addr_low;
                 end if;
 
-            when addr_high =>
+            when addr_high => -- read high bits of address from UART
                 addr_next(15 downto 8) <= uart_dout;
 
                 if (uart_dout_vld = '1') then
                     if (cmd_reg(0) = '1') then
-                        fsm_nstate <= dout0;
+                        fsm_nstate <= dout0; -- write cmd
                     else
-                        fsm_nstate <= request; -- read request
+                        fsm_nstate <= request; -- read cmd
                     end if;
                 else
                     fsm_nstate <= addr_high;
                 end if;
 
-            when dout0 =>
+            when dout0 => -- read data byte 0 from UART (write cmd only)
                 dout_next(7 downto 0) <= uart_dout;
 
                 if (uart_dout_vld = '1') then
@@ -148,7 +147,7 @@ begin
                     fsm_nstate <= dout0;
                 end if;
 
-            when dout1 =>
+            when dout1 => -- read data byte 1 from UART (write cmd only)
                 dout_next(15 downto 8) <= uart_dout;
 
                 if (uart_dout_vld = '1') then
@@ -157,7 +156,7 @@ begin
                     fsm_nstate <= dout1;
                 end if;
 
-            when dout2 =>
+            when dout2 => -- read data byte 2 from UART (write cmd only)
                 dout_next(23 downto 16) <= uart_dout;
 
                 if (uart_dout_vld = '1') then
@@ -166,7 +165,7 @@ begin
                     fsm_nstate <= dout2;
                 end if;
 
-            when dout3 =>
+            when dout3 => -- read data byte 3 from UART (write cmd only)
                 dout_next(31 downto 24) <= uart_dout;
 
                 if (uart_dout_vld = '1') then
@@ -175,8 +174,9 @@ begin
                     fsm_nstate <= dout3;
                 end if;
 
-            when request =>
+            when request => -- send WR or RD request to Wishbone bus
                 WB_STB <= '1'; -- request is valid
+                WB_CYC <= '1';
 
                 if (WB_STALL = '0') then
                     fsm_nstate <= wait4ack;
@@ -184,28 +184,30 @@ begin
                     fsm_nstate <= request;
                 end if;
 
-            when wait4ack =>
+            when wait4ack => -- wait for ACK on Wishbone bus
+                WB_CYC <= '1';
+
                 if (WB_ACK = '1') then
                     fsm_nstate <= response;
                 else
                     fsm_nstate <= wait4ack;
                 end if;
 
-            when response =>
+            when response => -- send response cmd to UART
                 uart_din     <= cmd_reg;
                 uart_din_vld <= '1';
 
                 if (uart_din_rdy = '1') then
                     if (cmd_reg(0) = '1') then
-                        fsm_nstate <= cmd;
+                        fsm_nstate <= cmd; -- idle or new read request cmd (write cmd only)
                     else
-                        fsm_nstate <= din0;
+                        fsm_nstate <= din0; -- send read data to UART (read cmd only)
                     end if;
                 else
                     fsm_nstate <= response;
                 end if;
 
-            when din0 =>
+            when din0 => -- send read data byte 0 to UART (read cmd only)
                 uart_din     <= din_reg(7 downto 0);
                 uart_din_vld <= '1';
 
@@ -215,7 +217,7 @@ begin
                     fsm_nstate <= din0;
                 end if;
 
-            when din1 =>
+            when din1 => -- send read data byte 1 to UART (read cmd only)
                 uart_din     <= din_reg(15 downto 8);
                 uart_din_vld <= '1';
 
@@ -225,7 +227,7 @@ begin
                     fsm_nstate <= din1;
                 end if;
 
-            when din2 =>
+            when din2 => -- send read data byte 2 to UART (read cmd only)
                 uart_din     <= din_reg(23 downto 16);
                 uart_din_vld <= '1';
 
@@ -235,7 +237,7 @@ begin
                     fsm_nstate <= din2;
                 end if;
 
-            when din3 =>
+            when din3 => -- send read data byte 3 to UART (read cmd only)
                 uart_din     <= din_reg(31 downto 24);
                 uart_din_vld <= '1';
 
