@@ -68,10 +68,10 @@ begin
         WB_STB   => wb_stb,
         WB_WE    => wb_we,
         WB_ADDR  => wb_addr,
-        WB_DOUT  => wb_dout,
+        WB_DOUT  => wb_din,
         WB_STALL => wb_stall,
         WB_ACK   => wb_ack,
-        WB_DIN   => wb_din
+        WB_DIN   => wb_dout
     );
 
     debug_reg_sel <= '1' when (wb_addr = X"0004") else '0';

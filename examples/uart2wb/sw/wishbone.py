@@ -44,7 +44,7 @@ class wishbone:
 if __name__ == '__main__':
     print("Test of access to CSR (control status registers) via UART2WBM module...")
     print("=======================================================================")
-    wb = wishbone("COM4")
+    wb = wishbone("COM1")
 
     print("\nREAD from 0x0:")
     rd = wb.read(0x0)
