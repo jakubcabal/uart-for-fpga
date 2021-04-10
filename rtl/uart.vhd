@@ -35,6 +35,7 @@ use IEEE.MATH_REAL.ALL;
     -- Added better simulation with automatic checking of transactions.
     -- Little code cleaning and code optimization.
     -- Added UART2WB bridge example (access to WB registers via UART).
+    -- Added Parity Error output.
 
 entity UART is
     Generic (
@@ -45,19 +46,20 @@ entity UART is
     );
     Port (
         -- CLOCK AND RESET
-        CLK         : in  std_logic; -- system clock
-        RST         : in  std_logic; -- high active synchronous reset
+        CLK          : in  std_logic; -- system clock
+        RST          : in  std_logic; -- high active synchronous reset
         -- UART INTERFACE
-        UART_TXD    : out std_logic; -- serial transmit data
-        UART_RXD    : in  std_logic; -- serial receive data
+        UART_TXD     : out std_logic; -- serial transmit data
+        UART_RXD     : in  std_logic; -- serial receive data
         -- USER DATA INPUT INTERFACE
-        DIN         : in  std_logic_vector(7 downto 0); -- input data to be transmitted over UART
-        DIN_VLD     : in  std_logic; -- when DIN_VLD = 1, input data (DIN) are valid
-        DIN_RDY     : out std_logic; -- when DIN_RDY = 1, transmitter is ready and valid input data will be accepted for transmiting
+        DIN          : in  std_logic_vector(7 downto 0); -- input data to be transmitted over UART
+        DIN_VLD      : in  std_logic; -- when DIN_VLD = 1, input data (DIN) are valid
+        DIN_RDY      : out std_logic; -- when DIN_RDY = 1, transmitter is ready and valid input data will be accepted for transmiting
         -- USER DATA OUTPUT INTERFACE
-        DOUT        : out std_logic_vector(7 downto 0); -- output data received via UART
-        DOUT_VLD    : out std_logic; -- when DOUT_VLD = 1, output data (DOUT) are valid (is assert only for one clock cycle)
-        FRAME_ERROR : out std_logic  -- when FRAME_ERROR = 1, stop bit was invalid (is assert only for one clock cycle)
+        DOUT         : out std_logic_vector(7 downto 0); -- output data received via UART
+        DOUT_VLD     : out std_logic; -- when DOUT_VLD = 1, output data (DOUT) are valid (is assert only for one clock cycle)
+        FRAME_ERROR  : out std_logic; -- when FRAME_ERROR = 1, stop bit was invalid (is assert only for one clock cycle)
+        PARITY_ERROR : out std_logic  -- when PARITY_ERROR = 1, parity bit was invalid (is assert only for one clock cycle)
     );
 end entity;
 
@@ -144,7 +146,7 @@ begin
         DOUT         => DOUT,
         DOUT_VLD     => DOUT_VLD,
         FRAME_ERROR  => FRAME_ERROR,
-        PARITY_ERROR => open
+        PARITY_ERROR => PARITY_ERROR
     );
 
     -- -------------------------------------------------------------------------

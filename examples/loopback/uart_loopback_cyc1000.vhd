@@ -57,19 +57,20 @@ begin
         USE_DEBOUNCER => USE_DEBOUNCER
     )
     port map (
-        CLK         => CLK_12M,
-        RST         => reset,
+        CLK          => CLK_12M,
+        RST          => reset,
         -- UART INTERFACE
-        UART_TXD    => UART_TXD,
-        UART_RXD    => UART_RXD,
-        -- USER DATA OUTPUT INTERFACE
-        DOUT        => data,
-        DOUT_VLD    => valid,
-        FRAME_ERROR => open,
+        UART_TXD     => UART_TXD,
+        UART_RXD     => UART_RXD,
         -- USER DATA INPUT INTERFACE
-        DIN         => data,
-        DIN_VLD     => valid,
-        DIN_RDY     => open
+        DIN          => data,
+        DIN_VLD      => valid,
+        DIN_RDY      => open,
+        -- USER DATA OUTPUT INTERFACE
+        DOUT         => data,
+        DOUT_VLD     => valid,
+        FRAME_ERROR  => open,
+        PARITY_ERROR => open
     );
 
 end architecture;

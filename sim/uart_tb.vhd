@@ -40,7 +40,9 @@ architecture SIM of UART_TB is
     signal monitor_txd_start_bit     : std_logic := '0';
     signal monitor_txd_stop_bit      : std_logic := '0';
 
-    signal frame_error : std_logic;
+    signal frame_error  : std_logic;
+    signal parity_error : std_logic;
+
     signal rand_int : integer := 0;
 
     constant CLK_FREQ      : natural := 50e6;
@@ -98,7 +100,7 @@ architecture SIM of UART_TB is
         -- move to middle of stop bit
         wait for UART_PER/2;
         if (UART_RXD = '0') then
-            report "Invalid stop bit in UART_MONITOR!" severity failure;
+            report "======== INVALID STOP BIT IN UART_MONITOR! ========" severity failure;
         end if;
         UART_STOP_BIT <= '0';
         -- in middle of stop bit move to resync (wait for start bit)
@@ -116,7 +118,6 @@ begin
         wait for CLK_PERIOD;
     end process;
 
-
     utt : entity work.UART
     generic map (
         CLK_FREQ    => CLK_FREQ,
@@ -124,19 +125,20 @@ begin
         PARITY_BIT  => "none" -- parity bit is not supported in this simulation
     )
     port map (
-        CLK         => CLK,
-        RST         => RST,
+        CLK          => CLK,
+        RST          => RST,
         -- UART INTERFACE
-        UART_TXD    => monitor_txd,
-        UART_RXD    => driver_rxd,
+        UART_TXD     => monitor_txd,
+        UART_RXD     => driver_rxd,
         -- USER DATA INPUT INTERFACE
-        DIN         => driver_din,
-        DIN_VLD     => driver_din_vld,
-        DIN_RDY     => driver_din_rdy,
+        DIN          => driver_din,
+        DIN_VLD      => driver_din_vld,
+        DIN_RDY      => driver_din_rdy,
         -- USER DATA OUTPUT INTERFACE
-        DOUT        => monitor_dout,
-        DOUT_VLD    => monitor_dout_vld,
-        FRAME_ERROR => frame_error
+        DOUT         => monitor_dout,
+        DOUT_VLD     => monitor_dout_vld,
+        FRAME_ERROR  => frame_error,
+        PARITY_ERROR => parity_error
     );
 
     clk_gen_p : process
@@ -181,7 +183,7 @@ begin
             if (monitor_dout = monitor_dout_expected) then
                 --report "Transaction on DOUT port is OK." severity note;
             else
-                report "Unexpected transaction on DOUT port!" severity failure;
+                report "======== UNEXPECTED TRANSACTION ON DOUT PORT! ========" severity failure;
             end if;
             wait for CLK_PERIOD;
         end loop;
@@ -221,7 +223,7 @@ begin
             if (monitor_txd_dout = monitor_txd_dout_expected) then
                 --report "Transaction on UART_TXD port is OK." severity note;
             else
-                report "Unexpected transaction on UART_TXD port!" severity failure;
+                report "======== UNEXPECTED TRANSACTION ON UART_TXD PORT! ========" severity failure;
             end if;
         end loop;
         monitor_txd_done <= '1';
@@ -238,7 +240,7 @@ begin
         v_test_done := driver_rxd_done and monitor_dout_done and driver_din_done and monitor_txd_done;
         if (v_test_done = '1') then
             wait for 100*CLK_PERIOD;
-            report "Simulation successfully completed." severity failure;
+            report "======== SIMULATION SUCCESSFULLY COMPLETED! ========" severity failure;
         end if;
         wait for CLK_PERIOD;
     end process;

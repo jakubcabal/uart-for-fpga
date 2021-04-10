@@ -260,19 +260,20 @@ begin
         USE_DEBOUNCER => True
     )
     port map (
-        CLK         => CLK,
-        RST         => RST,
+        CLK          => CLK,
+        RST          => RST,
         -- UART INTERFACE
-        UART_TXD    => UART_TXD,
-        UART_RXD    => UART_RXD,
-        -- USER DATA OUTPUT INTERFACE
-        DOUT        => uart_dout,
-        DOUT_VLD    => uart_dout_vld,
-        FRAME_ERROR => open,
+        UART_TXD     => UART_TXD,
+        UART_RXD     => UART_RXD,
         -- USER DATA INPUT INTERFACE
-        DIN         => uart_din,
-        DIN_VLD     => uart_din_vld,
-        DIN_RDY     => uart_din_rdy
+        DIN          => uart_din,
+        DIN_VLD      => uart_din_vld,
+        DIN_RDY      => uart_din_rdy,
+        -- USER DATA OUTPUT INTERFACE
+        DOUT         => uart_dout,
+        DOUT_VLD     => uart_dout_vld,
+        FRAME_ERROR  => open,
+        PARITY_ERROR => open
     );
 
 end architecture;
