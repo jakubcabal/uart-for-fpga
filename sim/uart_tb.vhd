@@ -12,6 +12,11 @@ use IEEE.NUMERIC_STD.ALL;
 use IEEE.MATH_REAL.ALL;
 
 entity UART_TB is
+    Generic (
+        CLK_FREQ      : natural := 50e6;   -- system clock frequency in Hz
+        BAUD_RATE     : natural := 115200; -- baud rate value
+        TRANS_COUNT   : natural := 1e4     -- number of test transaction
+    );
 end entity;
 
 architecture SIM of UART_TB is
@@ -43,11 +48,11 @@ architecture SIM of UART_TB is
     signal frame_error  : std_logic;
     signal parity_error : std_logic;
 
+    signal sim_done : std_logic := '0';
     signal rand_int : integer := 0;
+    signal count_rx : integer;
+    signal count_tx : integer;
 
-    constant CLK_FREQ      : natural := 50e6;
-    constant BAUD_RATE     : natural := 115200;
-    constant TRANS_COUNT   : natural := 2**8;
     constant CLK_PERIOD    : time := 1 ns * integer(real(1e9)/real(CLK_FREQ));
     constant UART_PERIOD_I : natural := integer(real(1e9)/real(BAUD_RATE));
     constant UART_PERIOD   : time := 1 ns * UART_PERIOD_I;
@@ -116,6 +121,9 @@ begin
         rand_int <= integer(rand*real(20));
         --report "Random number X: " & integer'image(rand_int);
         wait for CLK_PERIOD;
+        if (sim_done = '1') then
+            wait;
+        end if;
     end process;
 
     utt : entity work.UART
@@ -147,10 +155,16 @@ begin
         wait for CLK_PERIOD/2;
         CLK <= '1';
         wait for CLK_PERIOD/2;
+        if (sim_done = '1') then
+            wait;
+        end if;
     end process;
 
     rst_gen_p : process
     begin
+        report "======== SIMULATION START! ========";
+        report "Total transactions for RX direction: " & integer'image(TRANS_COUNT);
+        report "Total transactions for TX direction: " & integer'image(TRANS_COUNT);
         RST <= '1';
         wait for CLK_PERIOD*3;
           RST <= '0';
@@ -167,7 +181,7 @@ begin
         wait until RST = '0';
         wait for 33 ns;
         for i in 0 to TRANS_COUNT-1 loop
-            driver_rxd_din <= std_logic_vector(to_unsigned(i,driver_rxd_din'LENGTH));
+            driver_rxd_din <= std_logic_vector(to_unsigned((i mod 2**8),driver_rxd_din'LENGTH));
             UART_DRIVER(UART_PERIOD, driver_rxd_din, driver_rxd);
             wait for (rand_int/2) * UART_PERIOD;
         end loop;
@@ -177,14 +191,19 @@ begin
 
     monitor_dout_p : process
     begin
+        count_rx <= 1;
         for i in 0 to TRANS_COUNT-1 loop
-            monitor_dout_expected <= std_logic_vector(to_unsigned(i,monitor_dout_expected'LENGTH));
+            monitor_dout_expected <= std_logic_vector(to_unsigned((i mod 2**8),monitor_dout_expected'LENGTH));
             wait until monitor_dout_vld = '1';
             if (monitor_dout = monitor_dout_expected) then
                 --report "Transaction on DOUT port is OK." severity note;
+                if ((count_rx mod (TRANS_COUNT/10)) = 0) then
+                    report "Transactions received at RX monitor: " & integer'image(count_rx);
+                end if;
             else
                 report "======== UNEXPECTED TRANSACTION ON DOUT PORT! ========" severity failure;
             end if;
+            count_rx <= count_rx + 1;
             wait for CLK_PERIOD;
         end loop;
         monitor_dout_done <= '1';
@@ -201,7 +220,7 @@ begin
         wait until rising_edge(CLK);
         wait for CLK_PERIOD/2;
         for i in 0 to TRANS_COUNT-1 loop
-            driver_din <= std_logic_vector(to_unsigned(i,driver_din'LENGTH));
+            driver_din <= std_logic_vector(to_unsigned((i mod 2**8),driver_din'LENGTH));
             driver_din_vld <= '1';
             if (driver_din_rdy = '0') then	
                 wait until driver_din_rdy = '1';
@@ -217,14 +236,19 @@ begin
 
     monitor_txd_p : process
     begin
+        count_tx <= 1;
         for i in 0 to TRANS_COUNT-1 loop
-            monitor_txd_dout_expected <= std_logic_vector(to_unsigned(i,monitor_txd_dout_expected'LENGTH));
+            monitor_txd_dout_expected <= std_logic_vector(to_unsigned((i mod 2**8),monitor_txd_dout_expected'LENGTH));
             UART_MONITOR(UART_PERIOD, monitor_txd, monitor_txd_dout, monitor_txd_start_bit, monitor_txd_stop_bit);
             if (monitor_txd_dout = monitor_txd_dout_expected) then
                 --report "Transaction on UART_TXD port is OK." severity note;
+                if ((count_tx mod (TRANS_COUNT/10)) = 0) then
+                    report "Transactions received at TX monitor: " & integer'image(count_tx);
+                end if;
             else
                 report "======== UNEXPECTED TRANSACTION ON UART_TXD PORT! ========" severity failure;
             end if;
+            count_tx <= count_tx + 1;
         end loop;
         monitor_txd_done <= '1';
         wait;
@@ -240,7 +264,9 @@ begin
         v_test_done := driver_rxd_done and monitor_dout_done and driver_din_done and monitor_txd_done;
         if (v_test_done = '1') then
             wait for 100*CLK_PERIOD;
-            report "======== SIMULATION SUCCESSFULLY COMPLETED! ========" severity failure;
+            sim_done <= '1';
+            report "======== SIMULATION SUCCESSFULLY COMPLETED! ========";
+            wait;
         end if;
         wait for CLK_PERIOD;
     end process;
