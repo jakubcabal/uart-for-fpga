@@ -10,7 +10,7 @@ The UART controller was simulated and tested in hardware.
 
 ### Generics:
 
-```
+```vhdl
 CLK_FREQ      : integer := 50e6;   -- system clock frequency in Hz
 BAUD_RATE     : integer := 115200; -- baud rate value
 PARITY_BIT    : string  := "none"; -- type of parity: "none", "even", "odd", "mark", "space"
@@ -19,7 +19,7 @@ USE_DEBOUNCER : boolean := True    -- enable/disable debouncer
 
 ### Inputs and outputs ports:
 
-```
+```vhdl
 -- CLOCK AND RESET
 CLK          : in  std_logic; -- system clock
 RST          : in  std_logic; -- high active synchronous reset
@@ -50,10 +50,10 @@ Example of receiving data on the user interface of the UART controller. The last
 ### Table of resource usage summary:
 
 Parity type | LE | FF | M9k | Fmax
-:---:|:---:|:---:|:---:|:---:
-none       | 77 | 56 | 0 | 305.5 MHz
-even/odd   | 84 | 60 | 0 | 289.4 MHz
-mark/space | 82 | 60 | 0 | 290.7 MHz
+------------|----|----|-----|-----------
+none        | 77 | 56 | 0   | 305.5 MHz
+even/odd    | 84 | 60 | 0   | 289.4 MHz
+mark/space  | 82 | 60 | 0   | 290.7 MHz
 
 *Implementation was performed using Quartus Prime Lite Edition 20.1.0 for Intel Cyclone 10 FPGA (10CL025YU256C8G). Setting of some generics: USE_DEBOUNCER = True, BAUD_RATE = 115200, CLK_FREQ = 50e6.*
 
@@ -63,6 +63,13 @@ A simulation is prepared in the repository. You can use the prepared TCL script 
 ```
 vsim -do sim/sim.tcl
 ```
+
+Or it is possible to run the simulation using the [GHDL tool](https://github.com/ghdl/ghdl). Linux users can use the prepared bash script (in ```sim/``` folder) to run the simulation in GHDL:
+```
+./sim_ghdl_run.sh
+```
+
+I also use the GHDL tool for CI: automated VHDL simulations in the GitHub Actions environment ([setup-ghdl-ci](https://github.com/ghdl/setup-ghdl-ci)).
 
 ## Examples:
 
