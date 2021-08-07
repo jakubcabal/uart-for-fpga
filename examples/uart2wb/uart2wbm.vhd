@@ -12,8 +12,9 @@ use IEEE.NUMERIC_STD.ALL;
 
 entity UART2WBM is
     Generic (
-        CLK_FREQ  : integer := 50e6;  -- system clock frequency in Hz
-        BAUD_RATE : integer := 115200 -- baud rate value
+        CLK_FREQ   : integer := 50e6;  -- system clock frequency in Hz
+        BAUD_RATE  : integer := 115200; -- baud rate value
+        ADDR_WIDTH : integer := 16 -- address width, allowed values: 16, 32
     );
     Port (
         -- CLOCK AND RESET
@@ -26,7 +27,7 @@ entity UART2WBM is
         WB_CYC   : out std_logic;
         WB_STB   : out std_logic;
         WB_WE    : out std_logic;
-        WB_ADDR  : out std_logic_vector(15 downto 0);
+        WB_ADDR  : out std_logic_vector(ADDR_WIDTH-1 downto 0);
         WB_DOUT  : out std_logic_vector(31 downto 0);
         WB_STALL : in  std_logic;
         WB_ACK   : in  std_logic;
@@ -37,14 +38,14 @@ end entity;
 architecture RTL of UART2WBM is
 
     type state is (cmd, addr_low, addr_high, dout0, dout1, dout2, dout3,
-        request, wait4ack, response, din0, din1, din2, din3);
+        request, wait4ack, response, din0, din1, din2, din3, addr_ext1, addr_ext2);
     signal fsm_pstate : state;
     signal fsm_nstate : state;
 
     signal cmd_reg   : std_logic_vector(7 downto 0);
     signal cmd_next  : std_logic_vector(7 downto 0);
-    signal addr_reg  : std_logic_vector(15 downto 0);
-    signal addr_next : std_logic_vector(15 downto 0);
+    signal addr_reg  : std_logic_vector(ADDR_WIDTH-1 downto 0);
+    signal addr_next : std_logic_vector(ADDR_WIDTH-1 downto 0);
     signal dout_reg  : std_logic_vector(31 downto 0);
     signal dout_next : std_logic_vector(31 downto 0);
     signal din_reg   : std_logic_vector(31 downto 0);
@@ -129,13 +130,39 @@ begin
                 addr_next(15 downto 8) <= uart_dout;
 
                 if (uart_dout_vld = '1') then
+                    if (ADDR_WIDTH = 32) then
+                        fsm_nstate <= addr_ext1;
+                    else
+                        if (cmd_reg(0) = '1') then
+                            fsm_nstate <= dout0; -- write cmd
+                        else
+                            fsm_nstate <= request; -- read cmd
+                        end if;
+                    end if;
+                else
+                    fsm_nstate <= addr_high;
+                end if;
+
+            when addr_ext1 =>
+                addr_next(23 downto 16) <= uart_dout;
+
+                if (uart_dout_vld = '1') then
+                    fsm_nstate <= addr_ext2;
+                else
+                    fsm_nstate <= addr_ext1;
+                end if;
+
+            when addr_ext2 =>
+                addr_next(31 downto 24) <= uart_dout;
+
+                if (uart_dout_vld = '1') then
                     if (cmd_reg(0) = '1') then
                         fsm_nstate <= dout0; -- write cmd
                     else
                         fsm_nstate <= request; -- read cmd
                     end if;
                 else
-                    fsm_nstate <= addr_high;
+                    fsm_nstate <= addr_ext2;
                 end if;
 
             when dout0 => -- read data byte 0 from UART (write cmd only)

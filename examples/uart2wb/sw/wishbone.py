@@ -12,8 +12,9 @@ import serial
 byteorder="little"
 
 class wishbone:
-    def __init__(self, port="COM1", baudrate=9600):
+    def __init__(self, port="COM1", baudrate=9600, aw = 16):
         self.uart = serial.Serial(port, baudrate, timeout=2)
+        self.addr_bytes = aw//8
         print("The UART on " + self.uart.name + " is open.")
         print("The wishbone bus is ready.\n")
 
@@ -21,7 +22,7 @@ class wishbone:
         cmd = 0x0
         cmd = cmd.to_bytes(1,byteorder)
         self.uart.write(cmd)
-        addr = addr.to_bytes(2,byteorder)
+        addr = addr.to_bytes(self.addr_bytes,byteorder)
         self.uart.write(addr)
         rbytes=self.uart.read(1)
         rbytes=self.uart.read(4)
@@ -32,7 +33,7 @@ class wishbone:
         cmd = 0x1
         cmd = cmd.to_bytes(1,byteorder)
         self.uart.write(cmd)
-        addr = addr.to_bytes(2,byteorder)
+        addr = addr.to_bytes(self.addr_bytes,byteorder)
         self.uart.write(addr)
         data = data.to_bytes(4,byteorder)
         self.uart.write(data)
